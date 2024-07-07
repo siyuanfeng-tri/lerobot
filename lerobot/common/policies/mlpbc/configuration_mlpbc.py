@@ -91,6 +91,7 @@ class MLPBCConfig:
             "action": "mean_std",
         }
     )
+    use_l1_loss: bool = False
 
     # Architecture.
     # Vision backbone.

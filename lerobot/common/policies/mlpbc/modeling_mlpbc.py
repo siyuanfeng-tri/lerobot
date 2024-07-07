@@ -64,6 +64,7 @@ class MLPBCPolicy(nn.Module, PyTorchModelHubMixin):
         )
 
         self.model = MLPBC(config)
+        self.loss_fn = nn.L1Loss(reduction="none") if config.use_l1_loss else nn.MSELoss(reduction="none")
 
         self.reset()
 
@@ -127,9 +128,7 @@ class MLPBCPolicy(nn.Module, PyTorchModelHubMixin):
         batch = self.normalize_targets(batch)
         actions_hat = self.model(batch)
 
-        l1_loss = (
-            F.l1_loss(batch["action"], actions_hat, reduction="none") * ~batch["action_is_pad"].unsqueeze(-1)
-        ).mean()
+        l1_loss = (self.loss_fn(batch["action"], actions_hat) * ~batch["action_is_pad"].unsqueeze(-1)).mean()
 
         loss_dict = {"l1_loss": l1_loss.item()}
         loss_dict["loss"] = l1_loss
