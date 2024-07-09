@@ -573,7 +573,12 @@ class DiffusionRgbEncoder(nn.Module):
         # Drop the final (classification) layer
         # self.backbone = nn.Sequential(*(list(backbone_model.children())[:-1]))
         self.backbone = backbone_model
-        self.backbone.heads = nn.Identity()
+        if "resnet" in config.vision_backbone:
+            self.backbone.fc = nn.Identity()
+        elif "vit" in config.vision_backbone:
+            self.backbone.heads = nn.Identity()
+        else:
+            raise ValueError(f"Unsupported vision backbone {config.vision_backbone}")
 
         # Set up pooling and final layers.
         # Use a dry run to get the feature map shape.
