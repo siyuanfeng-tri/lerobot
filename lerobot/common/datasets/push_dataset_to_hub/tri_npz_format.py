@@ -35,6 +35,9 @@ from lerobot.common.datasets.utils import (
     hf_transform_to_torch,
 )
 from lerobot.common.datasets.video_utils import VideoFrame, encode_video_frames
+from lerobot.common.parallel_work import parallel_work
+import functools
+import resource
 
 PREFIX = "processed"
 SUFFIX = "npz"
@@ -131,62 +134,86 @@ def load_from_raw(
 
     ep_dicts = []
     ep_ids = episodes if episodes else range(num_episodes)
-    for ep_idx in tqdm.tqdm(ep_ids):
-        ep_path = raw_dir / f"episode_{ep_idx}" / PREFIX
 
-        actions_before_processing = np.load(ep_path / "actions.npz")["actions"]
-        num_frames = actions_before_processing.shape[0]
-        actions = process_actions(actions_before_processing)
+    rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
+    resource.setrlimit(resource.RLIMIT_NOFILE, (4096, rlimit[1]))
 
-        ep_dict = {}
+    def worker(ep_indices):
+        for ep_idx in ep_indices:
+            ep_path = raw_dir / f"episode_{ep_idx}" / PREFIX
 
-        metadata = yaml.safe_load((ep_path / "metadata.yaml").read_text())
-        cameras = get_cameras(metadata)
+            actions_before_processing = np.load(ep_path / "actions.npz")["actions"]
+            num_frames = actions_before_processing.shape[0]
+            actions = process_actions(actions_before_processing)
 
-        observations = np.load(ep_path / "observations.npz")
-        for camera, canonical_name in cameras.items():
-            img_key = f"observation.images.{canonical_name}"
-            video_fname = f"{canonical_name}_episode_{ep_idx:06d}.mp4"
+            ep_dict = {}
 
-            if video and not (videos_dir / video_fname).exists():
-                if not (ep_path / video_fname).exists():
-                    print("Creating video for camera ", camera)
-                    print(ep_path / video_fname)
-                    # lazily load all images in RAM
-                    imgs_array = observations[camera]
+            metadata = yaml.safe_load((ep_path / "metadata.yaml").read_text())
+            cameras = get_cameras(metadata)
 
-                    # save png images in temporary directory
-                    tmp_imgs_dir = ep_path / "tmp_images"
-                    save_images_concurrently(imgs_array, tmp_imgs_dir)
+            observations = np.load(ep_path / "observations.npz")
+            for camera, canonical_name in cameras.items():
+                img_key = f"observation.images.{canonical_name}"
+                video_fname = f"{canonical_name}_episode_{ep_idx:06d}.mp4"
 
-                    # encode images to a mp4 video
-                    encode_video_frames(tmp_imgs_dir, ep_path / video_fname, fps)
+                if video and not (videos_dir / video_fname).exists():
+                    if (ep_path / video_fname).exists():
+                        os.remove(ep_path / video_fname)
 
-                    # delete tmp directory
-                    shutil.rmtree(tmp_imgs_dir)
+                    if not (ep_path / video_fname).exists():
+                        # print("Creating video for camera ", camera)
+                        # print(ep_path / video_fname)
+                        # lazily load all images in RAM
+                        imgs_array = observations[camera]
 
-                # copy the video to the video directory
-                shutil.copy2(ep_path / video_fname, videos_dir / video_fname)
+                        # save png images in temporary directory
+                        tmp_imgs_dir = ep_path / "tmp_images"
+                        if tmp_imgs_dir.exists():
+                            shutil.rmtree(tmp_imgs_dir)
 
-            ep_dict[img_key] = [
-                {"path": f"videos/{video_fname}", "timestamp": i / fps} for i in range(num_frames)
-            ]
+                        save_images_concurrently(imgs_array, tmp_imgs_dir)
 
-        ep_dict["action"] = torch.from_numpy(actions)
-        ep_dict["episode_index"] = torch.tensor([ep_idx] * num_frames)
-        ep_dict["frame_index"] = torch.arange(0, num_frames, 1)
-        ep_dict["timestamp"] = torch.arange(0, num_frames, 1) / fps
+                        # encode images to a mp4 video
+                        encode_video_frames(tmp_imgs_dir, ep_path / video_fname, fps)
 
-        ep_dict["observation.state"] = torch.cat(
-            [torch.from_numpy(observations[state_vars]) for state_vars in state_variables], dim=-1
-        )
+                        # delete tmp directory
+                        shutil.rmtree(tmp_imgs_dir)
 
-        done = torch.zeros(num_frames, dtype=torch.bool)
-        done[-1] = True
-        ep_dict["next.done"] = done
+                    # copy the video to the video directory
+                    shutil.copy2(ep_path / video_fname, videos_dir / video_fname)
+                    os.remove(ep_path / video_fname)
 
-        assert isinstance(ep_idx, int)
-        ep_dicts.append(ep_dict)
+                ep_dict[img_key] = [
+                    {"path": f"videos/{video_fname}", "timestamp": i / fps} for i in range(num_frames)
+                ]
+
+            ep_dict["action"] = torch.from_numpy(actions)
+            ep_dict["episode_index"] = torch.tensor([ep_idx] * num_frames)
+            ep_dict["frame_index"] = torch.arange(0, num_frames, 1)
+            ep_dict["timestamp"] = torch.arange(0, num_frames, 1) / fps
+
+            ep_dict["observation.state"] = torch.cat(
+                [torch.from_numpy(observations[state_vars]) for state_vars in state_variables], dim=-1
+            )
+
+            done = torch.zeros(num_frames, dtype=torch.bool)
+            done[-1] = True
+            ep_dict["next.done"] = done
+
+            assert isinstance(ep_idx, int), f"\n\n\n{WTF}"
+            yield (ep_idx, ep_dict)
+
+    ep_dicts = parallel_work(
+        worker,
+        ep_ids,
+        process_count=50,
+        progress_cls=functools.partial(
+            tqdm.tqdm,
+            desc="Creating spartan manifests",
+        ),
+    )
+    ep_dicts = sorted(ep_dicts, key=lambda x: x[0])
+    ep_dicts = [x[1] for x in ep_dicts]
 
     data_dict = concatenate_episodes(ep_dicts)
 
