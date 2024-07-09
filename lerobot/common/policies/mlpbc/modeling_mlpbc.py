@@ -52,6 +52,7 @@ class MLPBCPolicy(nn.Module, PyTorchModelHubMixin):
             config = MLPBCConfig()
         self.config: MLPBCConfig = config
         self.expected_image_keys = [k for k in config.input_shapes if k.startswith("observation.image")]
+        self.num_images = len(self.expected_image_keys)
 
         self.normalize_inputs = Normalize(
             config.input_shapes, config.input_normalization_modes, dataset_stats
@@ -86,7 +87,8 @@ class MLPBCPolicy(nn.Module, PyTorchModelHubMixin):
         self.eval()
 
         batch = self.normalize_inputs(batch)
-        batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
+        if self.num_images:
+            batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
 
         # If we are doing temporal ensembling, keep track of the exponential moving average (EMA), and return
         # the first action.
@@ -124,7 +126,8 @@ class MLPBCPolicy(nn.Module, PyTorchModelHubMixin):
     def forward(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
         """Run the batch through the model and compute the loss for training or validation."""
         batch = self.normalize_inputs(batch)
-        batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
+        if self.num_images:
+            batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
         batch = self.normalize_targets(batch)
         actions_hat = self.model(batch)
 
@@ -146,16 +149,21 @@ class MLPBC(nn.Module):
         self.config = config
         self.use_input_state = "observation.state" in config.input_shapes
 
-        # Backbone for image feature extraction.
-        backbone_model = getattr(torchvision.models, config.vision_backbone)(
-            replace_stride_with_dilation=[False, False, config.replace_final_stride_with_dilation],
-            weights=config.pretrained_backbone_weights,
-            norm_layer=FrozenBatchNorm2d,
-        )
-        # Note: The assumption here is that we are using a ResNet model (and hence layer4 is the final feature
-        # map).
-        # Note: The forward method of this returns a dict: {"feature_map": output}.
-        self.backbone = IntermediateLayerGetter(backbone_model, return_layers={"layer4": "feature_map"})
+        self.use_images = any(k.startswith("observation.image") for k in config.input_shapes)
+        if self.use_images:
+            # Backbone for image feature extraction.
+            backbone_model = getattr(torchvision.models, config.vision_backbone)(
+                replace_stride_with_dilation=[False, False, config.replace_final_stride_with_dilation],
+                weights=config.pretrained_backbone_weights,
+                norm_layer=FrozenBatchNorm2d,
+            )
+            # Note: The assumption here is that we are using a ResNet model (and hence layer4 is the final feature
+            # map).
+            # Note: The forward method of this returns a dict: {"feature_map": output}.
+            self.backbone = IntermediateLayerGetter(backbone_model, return_layers={"layer4": "feature_map"})
+            self.encoder_img_feat_input_proj = nn.Conv2d(
+                backbone_model.fc.in_features, config.dim_model, kernel_size=1
+            )
 
         expected_image_keys = [k for k in config.input_shapes if k.startswith("observation.image")]
         # calculate model input shapes.
@@ -174,9 +182,6 @@ class MLPBC(nn.Module):
             self.encoder_robot_state_input_proj = nn.Linear(
                 config.input_shapes["observation.state"][0], config.dim_model
             )
-        self.encoder_img_feat_input_proj = nn.Conv2d(
-            backbone_model.fc.in_features, config.dim_model, kernel_size=1
-        )
 
         # Final action regression head on the output of the transformer's decoder.
         self.action_head = nn.Linear(config.dim_model, config.output_shapes["action"][0] * config.chunk_size)
