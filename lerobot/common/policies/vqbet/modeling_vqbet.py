@@ -74,6 +74,7 @@ class VQBeTPolicy(nn.Module, PyTorchModelHubMixin):
         self.vqbet = VQBeTModel(config)
 
         self.expected_image_keys = [k for k in config.input_shapes if k.startswith("observation.image")]
+        self.num_images = len(self.expected_image_keys)
 
         self.reset()
 
@@ -98,7 +99,8 @@ class VQBeTPolicy(nn.Module, PyTorchModelHubMixin):
         """
 
         batch = self.normalize_inputs(batch)
-        batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
+        if self.num_images:
+            batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
         # Note: It's important that this happens after stacking the images into a single key.
         self._queues = populate_queues(self._queues, batch)
 
@@ -123,7 +125,8 @@ class VQBeTPolicy(nn.Module, PyTorchModelHubMixin):
     def forward(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
         """Run the batch through the model and compute the loss for training or validation."""
         batch = self.normalize_inputs(batch)
-        batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
+        if self.num_images:
+            batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
         batch = self.normalize_targets(batch)
         # VQ-BeT discretizes action using VQ-VAE before training BeT (please refer to section 3.2 in the VQ-BeT paper https://arxiv.org/pdf/2403.03181)
         if not self.vqbet.action_head.vqvae_model.discretized.item():
@@ -279,8 +282,13 @@ class VQBeTModel(nn.Module):
         super().__init__()
         self.config = config
 
-        self.rgb_encoder = VQBeTRgbEncoder(config)
         self.num_images = len([k for k in config.input_shapes if k.startswith("observation.image")])
+        if self.num_images:
+            self.rgb_encoder = VQBeTRgbEncoder(config)
+            self.rgb_feature_projector = MLP(
+                self.rgb_encoder.feature_dim, hidden_channels=[self.config.gpt_input_dim]
+            )
+
         # This action query token is used as a prompt for querying action chunks. Please refer to "A_Q" in the image above.
         # Note: During the forward pass, this token is repeated as many times as needed. The authors also experimented with initializing the necessary number of tokens independently and observed inferior results.
         self.action_token = nn.Parameter(torch.randn(1, 1, self.config.gpt_input_dim))
@@ -288,9 +296,6 @@ class VQBeTModel(nn.Module):
         # To input state and observation features into GPT layers, we first project the features to fit the shape of input size of GPT.
         self.state_projector = MLP(
             config.input_shapes["observation.state"][0], hidden_channels=[self.config.gpt_input_dim]
-        )
-        self.rgb_feature_projector = MLP(
-            self.rgb_encoder.feature_dim, hidden_channels=[self.config.gpt_input_dim]
         )
 
         # GPT part of VQ-BeT
@@ -310,21 +315,23 @@ class VQBeTModel(nn.Module):
         batch_size, n_obs_steps = batch["observation.state"].shape[:2]
         assert n_obs_steps == self.config.n_obs_steps
 
-        # Extract image feature (first combine batch and sequence dims).
-        img_features = self.rgb_encoder(
-            einops.rearrange(batch["observation.images"], "b s n ... -> (b s n) ...")
-        )
-        # Separate batch and sequence dims.
-        img_features = einops.rearrange(
-            img_features, "(b s n) ... -> b s n ...", b=batch_size, s=n_obs_steps, n=self.num_images
-        )
-
-        # Arrange prior and current observation step tokens as shown in the class docstring.
-        # First project features to token dimension.
-        rgb_tokens = self.rgb_feature_projector(
-            img_features
-        )  # (batch, obs_step, number of different cameras, projection dims)
-        input_tokens = [rgb_tokens[:, :, i] for i in range(rgb_tokens.size(2))]
+        if self.num_images:
+            # Extract image feature (first combine batch and sequence dims).
+            img_features = self.rgb_encoder(
+                einops.rearrange(batch["observation.images"], "b s n ... -> (b s n) ...")
+            )
+            # Separate batch and sequence dims.
+            img_features = einops.rearrange(
+                img_features, "(b s n) ... -> b s n ...", b=batch_size, s=n_obs_steps, n=self.num_images
+            )
+            # Arrange prior and current observation step tokens as shown in the class docstring.
+            # First project features to token dimension.
+            rgb_tokens = self.rgb_feature_projector(
+                img_features
+            )  # (batch, obs_step, number of different cameras, projection dims)
+            input_tokens = [rgb_tokens[:, :, i] for i in range(rgb_tokens.size(2))]
+        else:
+            input_tokens = []
         input_tokens.append(
             self.state_projector(batch["observation.state"])
         )  # (batch, obs_step, projection dims)
@@ -610,18 +617,25 @@ class VQBeTHead(nn.Module):
 
 
 class VQBeTOptimizer(torch.optim.Adam):
-    def __init__(self, policy, cfg):
+    def __init__(self, policy: VQBeTPolicy, cfg: VQBeTConfig):
         vqvae_params = (
             list(policy.vqbet.action_head.vqvae_model.encoder.parameters())
             + list(policy.vqbet.action_head.vqvae_model.decoder.parameters())
             + list(policy.vqbet.action_head.vqvae_model.vq_layer.parameters())
         )
         decay_params, no_decay_params = policy.vqbet.policy.configure_parameters()
+        vision_params = (
+            (
+                list(policy.vqbet.rgb_encoder.parameters())
+                + list(policy.vqbet.rgb_feature_projector.parameters())
+            )
+            if policy.num_images
+            else []
+        )
         decay_params = (
             decay_params
-            + list(policy.vqbet.rgb_encoder.parameters())
+            + vision_params
             + list(policy.vqbet.state_projector.parameters())
-            + list(policy.vqbet.rgb_feature_projector.parameters())
             + [policy.vqbet.action_token]
             + list(policy.vqbet.action_head.map_to_cbet_preds_offset.parameters())
         )
