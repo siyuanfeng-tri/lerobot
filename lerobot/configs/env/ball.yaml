@@ -1,0 +1,13 @@
+# @package _global_
+
+fps: 30
+
+env:
+  name: ball
+  task: Maze-v0
+  state_dim: 4
+  action_dim: 2
+  fps: ${fps}
+  episode_length: 400
+  gym:
+    fps: ${fps}
