@@ -76,6 +76,7 @@ class ACTPolicy(nn.Module, PyTorchModelHubMixin):
         self.model = ACT(config)
 
         self.expected_image_keys = [k for k in config.input_shapes if k.startswith("observation.image")]
+        self.num_images = len(self.expected_image_keys)
 
         self.reset()
 
@@ -97,7 +98,8 @@ class ACTPolicy(nn.Module, PyTorchModelHubMixin):
         self.eval()
 
         batch = self.normalize_inputs(batch)
-        batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
+        if self.num_images:
+            batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
 
         # If we are doing temporal ensembling, keep track of the exponential moving average (EMA), and return
         # the first action.
@@ -135,7 +137,8 @@ class ACTPolicy(nn.Module, PyTorchModelHubMixin):
     def forward(self, batch: dict[str, Tensor]) -> dict[str, Tensor]:
         """Run the batch through the model and compute the loss for training or validation."""
         batch = self.normalize_inputs(batch)
-        batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
+        if self.num_images:
+            batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
         batch = self.normalize_targets(batch)
         actions_hat, (mu_hat, log_sigma_x2_hat) = self.model(batch)
 
@@ -291,7 +294,11 @@ class ACT(nn.Module):
                 "action" in batch
             ), "actions must be provided when using the variational objective in training mode."
 
-        batch_size = batch["observation.images"].shape[0]
+        batch_size = (
+            batch["observation.images"].shape[0]
+            if "observation.images" in batch
+            else batch["observation.state"].shape[0]
+        )
 
         # Prepare the latent for input to the transformer encoder.
         if self.config.use_vae and "action" in batch:
@@ -348,22 +355,6 @@ class ACT(nn.Module):
             )
 
         # Prepare all other transformer encoder inputs.
-        # Camera observation features and positional embeddings.
-        all_cam_features = []
-        all_cam_pos_embeds = []
-        images = batch["observation.images"]
-
-        for cam_index in range(images.shape[-4]):
-            cam_features = self.backbone(images[:, cam_index])["feature_map"]
-            # TODO(rcadene, alexander-soare): remove call to `.to` to speedup forward ; precompute and use buffer
-            cam_pos_embed = self.encoder_cam_feat_pos_embed(cam_features).to(dtype=cam_features.dtype)
-            cam_features = self.encoder_img_feat_input_proj(cam_features)  # (B, C, h, w)
-            all_cam_features.append(cam_features)
-            all_cam_pos_embeds.append(cam_pos_embed)
-        # Concatenate camera observation feature maps and positional embeddings along the width dimension.
-        encoder_in = torch.cat(all_cam_features, axis=-1)
-        cam_pos_embed = torch.cat(all_cam_pos_embeds, axis=-1)
-
         # Get positional embeddings for robot state and latent.
         if self.use_input_state:
             robot_state_embed = self.encoder_robot_state_input_proj(batch["observation.state"])  # (B, C)
@@ -371,19 +362,39 @@ class ACT(nn.Module):
 
         # Stack encoder input and positional embeddings moving to (S, B, C).
         encoder_in_feats = [latent_embed, robot_state_embed] if self.use_input_state else [latent_embed]
-        encoder_in = torch.cat(
-            [
-                torch.stack(encoder_in_feats, axis=0),
-                einops.rearrange(encoder_in, "b c h w -> (h w) b c"),
-            ]
-        )
-        pos_embed = torch.cat(
-            [
-                self.encoder_robot_and_latent_pos_embed.weight.unsqueeze(1),
-                cam_pos_embed.flatten(2).permute(2, 0, 1),
-            ],
-            axis=0,
-        )
+
+        encoder_in = torch.stack(encoder_in_feats, axis=0)
+        pos_embed = self.encoder_robot_and_latent_pos_embed.weight.unsqueeze(1)
+        # Camera observation features and positional embeddings.
+        if "observation.images" in batch:
+            all_cam_features = []
+            all_cam_pos_embeds = []
+            images = batch["observation.images"]
+
+            for cam_index in range(images.shape[-4]):
+                cam_features = self.backbone(images[:, cam_index])["feature_map"]
+                # TODO(rcadene, alexander-soare): remove call to `.to` to speedup forward ; precompute and use buffer
+                cam_pos_embed = self.encoder_cam_feat_pos_embed(cam_features).to(dtype=cam_features.dtype)
+                cam_features = self.encoder_img_feat_input_proj(cam_features)  # (B, C, h, w)
+                all_cam_features.append(cam_features)
+                all_cam_pos_embeds.append(cam_pos_embed)
+            # Concatenate camera observation feature maps and positional embeddings along the width dimension.
+            encoder_in_cam = torch.cat(all_cam_features, axis=-1)
+            cam_pos_embed = torch.cat(all_cam_pos_embeds, axis=-1)
+
+            encoder_in = torch.cat(
+                [
+                    encoder_in,
+                    einops.rearrange(encoder_in_cam, "b c h w -> (h w) b c"),
+                ]
+            )
+            pos_embed = torch.cat(
+                [
+                    pos_embed,
+                    cam_pos_embed.flatten(2).permute(2, 0, 1),
+                ],
+                axis=0,
+            )
 
         # Forward pass through the transformer modules.
         encoder_out = self.encoder(encoder_in, pos_embed=pos_embed)
