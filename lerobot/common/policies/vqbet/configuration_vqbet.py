@@ -114,9 +114,11 @@ class VQBeTConfig:
     # Architecture / modeling.
     # Vision backbone.
     vision_backbone: str = "resnet18"
+    resize_shape: tuple[int, int] | None = None
     crop_shape: tuple[int, int] | None = (84, 84)
     crop_is_random: bool = True
     pretrained_backbone_weights: str | None = None
+    use_spatial_softmax: bool = False
     use_group_norm: bool = True
     spatial_softmax_num_keypoints: int = 32
     # VQ-VAE

@@ -284,7 +284,10 @@ class VQBeTModel(nn.Module):
 
         self.num_images = len([k for k in config.input_shapes if k.startswith("observation.image")])
         if self.num_images:
-            self.rgb_encoder = VQBeTRgbEncoder(config)
+            if not config.use_spatial_softmax:
+                self.rgb_encoder = VQBeTRgbEncoder(config)
+            else:
+                self.rgb_encoder = VQBeTSpatialRgbEncoder(config)
             self.rgb_feature_projector = MLP(
                 self.rgb_encoder.feature_dim, hidden_channels=[self.config.gpt_input_dim]
             )
@@ -702,6 +705,79 @@ class VQBeTScheduler(nn.Module):
 
 
 class VQBeTRgbEncoder(nn.Module):
+    """Encoder an RGB image into a 1D feature vector.
+
+    Includes the ability to normalize and crop the image first.
+    """
+
+    def __init__(self, config: VQBeTConfig):
+        super().__init__()
+        # Set up optional preprocessing.
+        if config.crop_shape is not None:
+            self.do_crop = True
+            # First, do a resize
+            self.resize = torchvision.transforms.Resize(config.resize_shape)
+            # Always use center crop for eval
+            self.center_crop = torchvision.transforms.CenterCrop(config.crop_shape)
+            if config.crop_is_random:
+                self.maybe_random_crop = torchvision.transforms.RandomCrop(config.crop_shape)
+            else:
+                self.maybe_random_crop = self.center_crop
+        else:
+            self.do_crop = False
+
+        # Set up backbone.
+        backbone_model = getattr(torchvision.models, config.vision_backbone)(
+            weights=config.pretrained_backbone_weights
+        )
+        # Drop the final (classification) layer
+        # self.backbone = nn.Sequential(*(list(backbone_model.children())[:-1]))
+        self.backbone = backbone_model
+        if "resnet" in config.vision_backbone:
+            self.backbone.fc = nn.Identity()
+        elif "vit" in config.vision_backbone:
+            self.backbone.heads = nn.Identity()
+        else:
+            raise ValueError(f"Unsupported vision backbone {config.vision_backbone}")
+
+        # Set up pooling and final layers.
+        # Use a dry run to get the feature map shape.
+        # The dummy input should take the number of image channels from `config.input_shapes` and it should
+        # use the height and width from `config.crop_shape` if it is provided, otherwise it should use the
+        # height and width from `config.input_shapes`.
+        image_keys = [k for k in config.input_shapes if k.startswith("observation.image")]
+        # Note: we have a check in the config class to make sure all images have the same shape.
+        image_key = image_keys[0]
+        dummy_input_h_w = (
+            config.crop_shape if config.crop_shape is not None else config.input_shapes[image_key][1:]
+        )
+        dummy_input = torch.zeros(size=(2, config.input_shapes[image_key][0], *dummy_input_h_w))
+        with torch.inference_mode():
+            dummy_feature_map = self.backbone(dummy_input)
+        feature_map_shape = tuple(dummy_feature_map.shape[1:])
+        self.feature_dim = feature_map_shape[-1]
+
+    def forward(self, x: Tensor) -> Tensor:
+        """
+        Args:
+            x: (B, C, H, W) image tensor with pixel values in [0, 1].
+        Returns:
+            (B, D) image feature.
+        """
+        # Preprocess: maybe crop (if it was set up in the __init__).
+        x = self.resize(x)
+        if self.do_crop:
+            if self.training:  # noqa: SIM108
+                x = self.maybe_random_crop(x)
+            else:
+                # Always use center crop for eval.
+                x = self.center_crop(x)
+        # Extract backbone feature.
+        x = torch.flatten(self.backbone(x), start_dim=1)
+        return x
+
+
+class VQBeTSpatialRgbEncoder(nn.Module):
     """Encode an RGB image into a 1D feature vector.
 
     Includes the ability to normalize and crop the image first.
