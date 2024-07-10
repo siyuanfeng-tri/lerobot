@@ -229,15 +229,16 @@ class ACT(nn.Module):
             )
 
         # Backbone for image feature extraction.
-        backbone_model = getattr(torchvision.models, config.vision_backbone)(
-            replace_stride_with_dilation=[False, False, config.replace_final_stride_with_dilation],
-            weights=config.pretrained_backbone_weights,
-            norm_layer=FrozenBatchNorm2d,
-        )
         # Note: The assumption here is that we are using a ResNet model (and hence layer4 is the final feature
         # map).
         # Note: The forward method of this returns a dict: {"feature_map": output}.
-        self.backbone = IntermediateLayerGetter(backbone_model, return_layers={"layer4": "feature_map"})
+        backbone_model, backbone_feature_dim = _get_backbone_model(config)
+        self.backbone = (
+            backbone_model  # IntermediateLayerGetter(backbone_model, return_layers={"layer4": "feature_map"})
+        )
+        self.resize = torchvision.transforms.Resize(config.resize_shape)
+        self.eval_crop = torchvision.transforms.CenterCrop(config.crop_shape)
+        self.train_crop = torchvision.transforms.RandomCrop(config.crop_shape)
 
         # Transformer (acts as VAE decoder when training with the variational objective).
         self.encoder = ACTEncoder(config)
@@ -250,9 +251,7 @@ class ACT(nn.Module):
                 config.input_shapes["observation.state"][0], config.dim_model
             )
         self.encoder_latent_input_proj = nn.Linear(config.latent_dim, config.dim_model)
-        self.encoder_img_feat_input_proj = nn.Conv2d(
-            backbone_model.fc.in_features, config.dim_model, kernel_size=1
-        )
+        self.encoder_img_feat_input_proj = nn.Conv2d(backbone_feature_dim, config.dim_model, kernel_size=1)
         # Transformer encoder positional embeddings.
         num_input_token_decoder = 2 if self.use_input_state else 1
         self.encoder_robot_and_latent_pos_embed = nn.Embedding(num_input_token_decoder, config.dim_model)
@@ -372,7 +371,12 @@ class ACT(nn.Module):
             images = batch["observation.images"]
 
             for cam_index in range(images.shape[-4]):
-                cam_features = self.backbone(images[:, cam_index])["feature_map"]
+                image = self.resize(images[:, cam_index])
+                if self.training and self.config.crop_is_random:
+                    image = self.train_crop(image)
+                else:
+                    image = self.eval_crop(image)
+                cam_features = self.backbone(image)["feature_map"]
                 # TODO(rcadene, alexander-soare): remove call to `.to` to speedup forward ; precompute and use buffer
                 cam_pos_embed = self.encoder_cam_feat_pos_embed(cam_features).to(dtype=cam_features.dtype)
                 cam_features = self.encoder_img_feat_input_proj(cam_features)  # (B, C, h, w)
@@ -417,6 +421,50 @@ class ACT(nn.Module):
         actions = self.action_head(decoder_out)
 
         return actions, (mu, log_sigma_x2)
+
+
+def _get_backbone_model(config: ACTConfig):
+    """Get the torchvision model for the given backbone name."""
+    if config.vision_backbone.startswith("resnet"):
+        backbone_model = getattr(torchvision.models, config.vision_backbone)(
+            replace_stride_with_dilation=[False, False, config.replace_final_stride_with_dilation],
+            weights=config.pretrained_backbone_weights,
+            norm_layer=FrozenBatchNorm2d,
+        )
+        # Note: The assumption here is that we are using a ResNet model (and hence layer4 is the final feature
+        # map).
+        # Note: The forward method of this returns a dict: {"feature_map": output}.
+        backbone = IntermediateLayerGetter(backbone_model, return_layers={"layer4": "feature_map"})
+        backbone_out_dim = backbone_model.fc.in_features
+    elif config.vision_backbone.startswith("vit"):
+        backbone_model = getattr(torchvision.models, config.vision_backbone)(
+            weights=config.pretrained_backbone_weights
+        )
+        h, w = (
+            config.crop_shape[0] // backbone_model.patch_size,
+            config.crop_shape[1] // backbone_model.patch_size,
+        )
+
+        def new_forward(self: torchvision.models.VisionTransformer, x: torch.Tensor):
+            # Reshape and permute the input tensor
+            x = self._process_input(x)
+            n = x.shape[0]
+
+            # Expand the class token to the full batch
+            batch_class_token = self.class_token.expand(n, -1, -1)
+            x = torch.cat([batch_class_token, x], dim=1)
+            x = self.encoder(x)
+            # Drop the classifier "token" as used by standard language architectures
+            x = x[:, 1:]
+            x = einops.rearrange(x, "b (h w) d -> b d h w", h=h, w=w)
+
+            return {"feature_map": x}
+
+        backbone_model.forward = new_forward.__get__(backbone_model)
+        backbone = backbone_model
+        backbone_out_dim = backbone_model.hidden_dim
+
+    return backbone, backbone_out_dim
 
 
 class ACTEncoder(nn.Module):

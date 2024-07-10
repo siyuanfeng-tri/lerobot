@@ -14,6 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from dataclasses import dataclass, field
+from typing import Tuple
 
 
 @dataclass
@@ -119,6 +120,9 @@ class ACTConfig:
     vision_backbone: str = "resnet18"
     pretrained_backbone_weights: str | None = "ResNet18_Weights.IMAGENET1K_V1"
     replace_final_stride_with_dilation: int = False
+    resize_shape: Tuple[int, int] = (256, 342)
+    crop_shape: Tuple[int, int] = (224, 224)
+    crop_is_random: bool = True
     # Transformer layers.
     pre_norm: bool = False
     dim_model: int = 512
@@ -144,10 +148,10 @@ class ACTConfig:
 
     def __post_init__(self):
         """Input validation (not exhaustive)."""
-        if not self.vision_backbone.startswith("resnet"):
-            raise ValueError(
-                f"`vision_backbone` must be one of the ResNet variants. Got {self.vision_backbone}."
-            )
+        # if not self.vision_backbone.startswith("resnet"):
+        #     raise ValueError(
+        #         f"`vision_backbone` must be one of the ResNet variants. Got {self.vision_backbone}."
+        #     )
         if self.temporal_ensemble_momentum is not None and self.n_action_steps > 1:
             raise NotImplementedError(
                 "`n_action_steps` must be 1 when using temporal ensembling. This is "
