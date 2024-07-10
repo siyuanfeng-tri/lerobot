@@ -74,8 +74,11 @@ policy:
 
   # Architecture.
   # Vision backbone.
-  vision_backbone: resnet18
-  pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1
+  # vision_backbone: resnet18
+  vision_backbone: vit_b_16
+  pretrained_backbone_weights: IMAGENET1K_V1
+  resize_shape: [256, 342]
+  crop_shape: [224, 224]
   replace_final_stride_with_dilation: false
   # Transformer layers.
   pre_norm: false
