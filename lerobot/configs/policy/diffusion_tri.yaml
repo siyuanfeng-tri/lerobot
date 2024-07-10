@@ -9,6 +9,13 @@ skill: ???
 dataset_repo_id: tri-lbm-eval/${skill}
 dataset_local_root_dir: "/home/ubuntu/efs/sfeng/lerobot/"
 
+wandb:
+  enable: true
+
+hydra:
+  job:
+    name: ${skill}
+
 override_dataset_stats:
   observation.images.wrist_right_minus:
     # stats from imagenet, since we use a pretrained vision model
@@ -29,7 +36,7 @@ override_dataset_stats:
 
 
 training:
-  offline_steps: 20000
+  offline_steps: 40000
   online_steps: 0
   eval_freq: 0
   save_freq: 5000
@@ -130,10 +137,3 @@ policy:
 
   # Loss computation
   do_mask_loss_for_padding: false
-
-wandb:
-  enable: true
-
-hydra:
-  job:
-    name: ${skill}

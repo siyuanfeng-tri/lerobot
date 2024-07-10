@@ -1,7 +1,16 @@
 # @package _global_
 
-seed: 1000
-dataset_repo_id: notmahi/tutorial-tri-BimanualPutRedBellPepperInBin
+seed: 100000
+skill: ???
+dataset_repo_id: tri-lbm-eval/${skill}
+dataset_local_root_dir: "/home/ubuntu/efs/sfeng/lerobot/"
+
+wandb:
+  enable: true
+
+hydra:
+  job:
+    name: ${skill}
 
 override_dataset_stats:
   observation.images.wrist_right_minus:
@@ -24,12 +33,13 @@ override_dataset_stats:
 training:
   offline_steps: 80000
   online_steps: 0
-  eval_freq: 10000
-  save_freq: 100000
+  eval_freq: 0
+  save_freq: 5000
   log_freq: 250
   save_checkpoint: true
 
-  batch_size: 8
+  batch_size: 32
+  num_workers: 16
   lr: 1e-5
   lr_backbone: 1e-5
   weight_decay: 1e-4
@@ -73,12 +83,15 @@ policy:
     action: mean_std
 
   # Architecture.
+  # act dont work with vit
   # Vision backbone.
   # vision_backbone: resnet18
   vision_backbone: vit_b_16
   pretrained_backbone_weights: IMAGENET1K_V1
   resize_shape: [256, 342]
   crop_shape: [224, 224]
+  #vision_backbone: resnet18
+  #pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1
   replace_final_stride_with_dilation: false
   # Transformer layers.
   pre_norm: false
