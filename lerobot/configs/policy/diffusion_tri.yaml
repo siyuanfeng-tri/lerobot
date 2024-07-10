@@ -5,7 +5,8 @@
 #       https://github.com/huggingface/lerobot/pull/134 for more details.
 
 seed: 100000
-dataset_repo_id: notmahi/tutorial-tri-BimanualPutRedBellPepperInBin
+skill: ???
+dataset_repo_id: tri-lbm-eval/${skill}
 
 override_dataset_stats:
   observation.images.wrist_right_minus:
@@ -29,12 +30,13 @@ override_dataset_stats:
 training:
   offline_steps: 20000
   online_steps: 0
-  eval_freq: 5000
+  eval_freq: 0
   save_freq: 5000
   log_freq: 250
   save_checkpoint: true
 
-  batch_size: 32
+  num_workers: 16
+  batch_size: 30
   grad_clip_norm: 10
   lr: 1.0e-4
   lr_scheduler: cosine
@@ -126,3 +128,10 @@ policy:
 
   # Loss computation
   do_mask_loss_for_padding: false
+
+wandb:
+  enable: true
+
+hydra:
+  job:
+    name: ${skill}
