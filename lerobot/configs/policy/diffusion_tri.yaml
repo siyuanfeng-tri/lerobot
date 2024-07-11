@@ -13,6 +13,8 @@ wandb:
   enable: true
 
 hydra:
+  run:
+    dir: ~/efs/results/lerobot/outputs/train/${now:%Y-%m-%d}/${now:%H-%M-%S}_${env.name}_${policy.name}_${hydra.job.name}
   job:
     name: ${skill}
 
@@ -36,18 +38,19 @@ override_dataset_stats:
 
 
 training:
-  offline_steps: 40000
+  offline_steps: 80000
   online_steps: 0
   eval_freq: 0
-  save_freq: 5000
+  save_freq: 10000
   log_freq: 250
   save_checkpoint: true
 
-  num_workers: 16
-  batch_size: 128
+  num_workers: 8
+  # batch_size: 128
   # for vit b
-  # batch_size: 30
+  batch_size: 30
   grad_clip_norm: 10
+  lr_backbone: 1e-5
   lr: 1.0e-4
   lr_scheduler: constant
   #lr_scheduler: cosine
@@ -102,10 +105,10 @@ policy:
 
   # Architecture / modeling.
   # Vision backbone.
-  #vision_backbone: vit_b_16
-  #pretrained_backbone_weights: IMAGENET1K_SWAG_LINEAR_V1
-  vision_backbone: resnet18
-  pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1
+  vision_backbone: vit_b_16
+  pretrained_backbone_weights: IMAGENET1K_SWAG_LINEAR_V1
+  #vision_backbone: resnet18
+  #pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1
   resize_shape: [256, 342]
   crop_shape: [224, 224]
   crop_is_random: True

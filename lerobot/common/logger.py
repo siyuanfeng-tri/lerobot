@@ -46,6 +46,8 @@ def cfg_to_group(cfg: DictConfig, return_list: bool = False) -> list[str] | str:
         f"dataset:{cfg.dataset_repo_id}",
         f"env:{cfg.env.name}",
         f"seed:{cfg.seed}",
+        f"backbone:{cfg.policy.vision_backbone}",
+        f"max_steps:{cfg.training.offline_steps}",
     ]
     # wandb tag max length is 64 char
     lst = [x[:64] for x in lst]
