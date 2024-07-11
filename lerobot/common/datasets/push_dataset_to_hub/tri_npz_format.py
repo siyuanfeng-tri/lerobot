@@ -80,9 +80,15 @@ def process_actions(actions: np.ndarray) -> np.ndarray:
     return actions
 
 
+def get_episode_indices(raw_dir):
+    stuff = [x for x in os.listdir(raw_dir) if x.startswith("episode")]
+    indices = [int(x[len("episode_"):]) for x in stuff]
+    return indices
+
+
 def check_format(raw_dir: Path) -> bool:
     # only frames from simulation are uncompressed
-    num_episodes = len([x for x in os.listdir(raw_dir) if x.startswith("episode")])
+    indices = get_episode_indices(raw_dir)
     required_files = [
         "summary",
         "observations",
@@ -93,8 +99,11 @@ def check_format(raw_dir: Path) -> bool:
         "detailed_task_predicate_traj",
     ]
 
-    for ep_idx in range(num_episodes):
+    for ep_idx in indices:
         ep_folder: Path = raw_dir / f"episode_{ep_idx}" / PREFIX
+        if not ep_folder.exists():
+            import pdb; pdb.set_trace()
+
         assert ep_folder.exists()
 
         metadata_path = ep_folder / "metadata.yaml"
@@ -118,7 +127,7 @@ def load_from_raw(
     raw_dir: Path, videos_dir: Path, fps: int = 30, video: bool = True, episodes: list[int] | None = None
 ):
     # only frames from simulation are uncompressed
-    num_episodes = len([x for x in os.listdir(raw_dir) if x.startswith("episode")])
+    indices = get_episode_indices(raw_dir)
 
     # Only video form is supported for now
     assert video, "Only video form is supported for now."
@@ -133,7 +142,7 @@ def load_from_raw(
     ]
 
     ep_dicts = []
-    ep_ids = episodes if episodes else range(num_episodes)
+    ep_ids = episodes if episodes else indices
 
     rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
     resource.setrlimit(resource.RLIMIT_NOFILE, (4096, rlimit[1]))

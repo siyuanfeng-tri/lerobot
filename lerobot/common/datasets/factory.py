@@ -94,7 +94,15 @@ def make_dataset(cfg, split: str = "train") -> LeRobotDataset | MultiLeRobotData
         root = cfg.get("dataset_local_root_dir", None)
         dataset = LeRobotDataset(
             cfg.dataset_repo_id,
-            split=split,
+            split="train",
+            delta_timestamps=cfg.training.get("delta_timestamps"),
+            image_transforms=image_transforms,
+            video_backend=cfg.video_backend,
+            root=root,
+        )
+        val_dataset = LeRobotDataset(
+            cfg.val_dataset_repo_id,
+            split="train",
             delta_timestamps=cfg.training.get("delta_timestamps"),
             image_transforms=image_transforms,
             video_backend=cfg.video_backend,
@@ -116,4 +124,4 @@ def make_dataset(cfg, split: str = "train") -> LeRobotDataset | MultiLeRobotData
                 stats = OmegaConf.to_container(listconfig, resolve=True)
                 dataset.stats[key][stats_type] = torch.tensor(stats, dtype=torch.float32)
 
-    return dataset
+    return dataset, val_dataset
