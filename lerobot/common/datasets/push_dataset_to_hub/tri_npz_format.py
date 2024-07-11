@@ -74,8 +74,13 @@ def process_actions(actions: np.ndarray) -> np.ndarray:
     rotation_2_axis_angle = calculate_axis_angle(
         calculate_rotation_matrix(rotation_2[:, 0:3], rotation_2[:, 3:6])
     )
-    action_1 = np.concatenate([translation_1, rotation_1_axis_angle, gripper_1], axis=-1)
-    action_2 = np.concatenate([translation_2, rotation_2_axis_angle, gripper_2], axis=-1)
+
+    #action_1 = np.concatenate([translation_1, rotation_1_axis_angle, gripper_1], axis=-1)
+    #action_2 = np.concatenate([translation_2, rotation_2_axis_angle, gripper_2], axis=-1)
+
+    action_1 = np.concatenate([translation_1, rotation_1, gripper_1], axis=-1)
+    action_2 = np.concatenate([translation_2, rotation_2, gripper_2], axis=-1)
+
     actions = np.concatenate([action_1, action_2], axis=-1)
     return actions
 

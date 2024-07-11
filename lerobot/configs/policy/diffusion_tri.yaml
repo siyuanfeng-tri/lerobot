@@ -6,8 +6,7 @@
 
 seed: 100000
 skill: ???
-dataset_repo_id: ${skill}-train
-val_dataset_repo_id: ${skill}-val
+dataset_repo_id: ${skill}
 dataset_local_root_dir: "/home/ubuntu/efs/sfeng/lerobot/dataset/"
 
 wandb:
@@ -51,8 +50,8 @@ training:
   # for vit b
   batch_size: 30
   grad_clip_norm: 10
-  lr_backbone: 5e-5
-  lr: 5.0e-4
+  lr_backbone: 1e-5
+  lr: 1.0e-4
   lr_scheduler: constant
   #lr_scheduler: cosine
   lr_warmup_steps: 500

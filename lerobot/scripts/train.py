@@ -293,7 +293,7 @@ def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = No
     torch.backends.cuda.matmul.allow_tf32 = True
 
     logging.info("make_dataset")
-    offline_dataset, val_dataset = make_dataset(cfg)
+    offline_dataset = make_dataset(cfg)
     if isinstance(offline_dataset, MultiLeRobotDataset):
         logging.info(
             "Multiple datasets were provided. Applied the following index mapping to the provided datasets: "
