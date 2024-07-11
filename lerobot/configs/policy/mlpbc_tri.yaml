@@ -79,7 +79,7 @@ policy:
 
   # Architecture.
   use_l1_loss: false
-  num_hidden_layers: 2
+  num_hidden_layers: 3
   # Vision backbone.
   vision_backbone: resnet18
   pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1
