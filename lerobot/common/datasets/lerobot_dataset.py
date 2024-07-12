@@ -457,6 +457,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         info=None,
         videos_dir=None,
         video_backend=None,
+        is_relative_traj: bool = False,
     ) -> "LeRobotDataset":
         """Create a LeRobot Dataset from existing data and attributes instead of loading from the filesystem.
 
@@ -480,6 +481,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         obj.info = info if info is not None else {}
         obj.videos_dir = videos_dir
         obj.video_backend = video_backend if video_backend is not None else "pyav"
+        obj.is_relative_traj = is_relative_traj
         return obj
 
 

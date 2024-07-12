@@ -49,6 +49,8 @@ def cfg_to_group(cfg: DictConfig, return_list: bool = False) -> list[str] | str:
         f"backbone:{cfg.policy.vision_backbone}",
         f"max_steps:{cfg.training.offline_steps}",
     ]
+    if cfg.env.state_dim == 38:
+        lst.append("rel_traj")
     # wandb tag max length is 64 char
     lst = [x[:64] for x in lst]
     return lst if return_list else "-".join(lst)
