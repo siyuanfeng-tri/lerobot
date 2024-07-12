@@ -32,9 +32,13 @@ class BallgameEnv(gym.Env):
     DEFAULT_DAMPING = 0.99
     DEFAULT_TIMEOUT = 1000
     SQRT_2 = 2**0.5
+    RENDER_MODES = ["human", "rgb_array"]
+
+    metadata = {"render_modes": RENDER_MODES, "render_fps": DEFAULT_FPS}
 
     def __init__(
         self,
+        obs_type: str = "state",
         maze: np.ndarray = DEFAULT_MAZE,
         key_locations: List[Tuple[int, int]] = DEFAULT_KEY_LOCATIONS,
         width: int = DEFAULT_WIDTH,
@@ -61,21 +65,56 @@ class BallgameEnv(gym.Env):
         self.fps = fps
         # Determine the action and the observation spaces.
         self.action_space = gym.spaces.Box(low=-1, high=1, shape=(2,), dtype=np.float32)
-        self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(4,), dtype=np.float32)
+        self._setup_observation_space(obs_type)
+        self.obs_type = obs_type
         self.episode_length = timeout
         self.reset()
+
+    def _setup_observation_space(self, obs_type: str):
+        if obs_type == "state":
+            self.observation_space = gym.spaces.Box(low=-np.inf, high=np.inf, shape=(4,), dtype=np.float32)
+        elif obs_type == "image":
+            self.observation_space = gym.spaces.Box(
+                low=0, high=255, shape=(self.height, self.width, 3), dtype=np.uint8
+            )
+        elif obs_type == "pixels_agent_pos":
+            self.observation_space = gym.spaces.Dict(
+                {
+                    "pixels": gym.spaces.Box(
+                        low=0, high=255, shape=(self.height, self.width, 3), dtype=np.uint8
+                    ),
+                    "agent_pos": gym.spaces.Box(
+                        low=np.array([0.0, 0.0, -np.inf, -np.inf]),
+                        high=np.array([self.height, self.width, np.inf, np.inf]),
+                        shape=(4,),
+                        dtype=np.float32,
+                    ),
+                }
+            )
+        else:
+            raise ValueError(f"Unknown observation type: {obs_type}")
 
     def reset(self, seed=None):
         self.ball = np.array([1.5, 1.5]) * self.cell_size
         if seed is not None:
             np.random.seed(seed)
-        self.ball += np.random.normal(scale=self.reset_location_noise_scale, size=2)
+        self.ball += self.cell_size * np.random.normal(scale=self.reset_location_noise_scale, size=2)
         self.ball_velocity = np.array([0, 0], dtype=np.float32)
         self.trail = []
-        return self._get_observation()
+        obs = self._get_observation()
+        return obs, {"trail": np.zeros((0, 2)), "is_success": False}
 
-    def _get_observation(self):
-        return np.concatenate([self.ball, self.ball_velocity])
+    def _get_observation(self, obs_type: str = None):
+        obs_type = obs_type or self.obs_type
+        if obs_type == "state":
+            return np.concatenate([self.ball, self.ball_velocity])
+        elif obs_type == "image":
+            return self.render(render_mode="rgb_array")
+        elif obs_type == "pixels_agent_pos":
+            return {
+                "pixels": self.render(render_mode="rgb_array"),
+                "agent_pos": np.concatenate([self.ball, self.ball_velocity]),
+            }
 
     def step(self, action: np.ndarray):
         reached_goal, reached_timeout = False, False
@@ -114,9 +153,15 @@ class BallgameEnv(gym.Env):
             reached_timeout = True
             reward = -1
 
-        return self._get_observation(), reward, reached_goal, reached_timeout, {"trail": np.stack(self.trail)}
+        return (
+            self._get_observation(),
+            reward,
+            reached_goal,
+            reached_timeout,
+            {"trail": np.stack(self.trail), "is_success": reached_goal},
+        )
 
-    def render(self, render_mode="human"):
+    def render(self, render_mode="rgb_array"):
         # Render the environment with CV2.
         img = np.ones((self.height, self.width, 3), dtype=np.uint8) * 255
         for row in range(len(self.maze)):

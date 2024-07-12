@@ -1,13 +1,15 @@
 # @package _global_
 
-fps: 30
+fps: 60
 
 env:
-  name: ball
-  task: Maze-v0
+  name: ballgame
+  task: Ballgame-v0
   state_dim: 4
   action_dim: 2
   fps: ${fps}
-  episode_length: 400
+  episode_length: 1000
   gym:
     fps: ${fps}
+    obs_type: pixels_agent_pos
+    timeout: 1000
