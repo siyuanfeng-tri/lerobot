@@ -616,6 +616,7 @@ class DiffusionRgbEncoder(nn.Module):
             dummy_feature_map = self.backbone(dummy_input)
         feature_map_shape = tuple(dummy_feature_map.shape[1:])
         self.feature_dim = feature_map_shape[-1]
+        import pdb; pdb.set_trace()
 
     def forward(self, x: Tensor) -> Tensor:
         """

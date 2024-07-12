@@ -24,6 +24,15 @@ from datasets import Image
 from lerobot.common.datasets.video_utils import VideoFrame
 
 
+def _merge_batch_and_time(batch, keys):
+    if batch["action"].ndim == 3:
+        for k in keys:
+            if batch[k].ndim >= 2:
+                batch[k] = einops.rearrange(batch[k], "b c ... -> (b c) ...")
+
+    return batch
+
+
 def get_stats_einops_patterns(dataset, num_workers=0):
     """These einops patterns will be used to aggregate batches and compute statistics.
 
@@ -37,6 +46,7 @@ def get_stats_einops_patterns(dataset, num_workers=0):
         shuffle=False,
     )
     batch = next(iter(dataloader))
+    batch = _merge_batch_and_time(batch, dataset.features.keys())
 
     stats_patterns = {}
     for key, feats_type in dataset.features.items():
@@ -101,6 +111,8 @@ def compute_stats(dataset, batch_size=32, num_workers=16, max_num_samples=None):
     for i, batch in enumerate(
         tqdm.tqdm(dataloader, total=ceil(max_num_samples / batch_size), desc="Compute mean, min, max")
     ):
+        batch = _merge_batch_and_time(batch, dataset.features.keys())
+
         this_batch_size = len(batch["index"])
         running_item_count += this_batch_size
         if first_batch is None:
@@ -127,6 +139,8 @@ def compute_stats(dataset, batch_size=32, num_workers=16, max_num_samples=None):
     for i, batch in enumerate(
         tqdm.tqdm(dataloader, total=ceil(max_num_samples / batch_size), desc="Compute std")
     ):
+        batch = _merge_batch_and_time(batch, dataset.features.keys())
+
         this_batch_size = len(batch["index"])
         running_item_count += this_batch_size
         # Sanity check to make sure the batches are still in the same order as before.

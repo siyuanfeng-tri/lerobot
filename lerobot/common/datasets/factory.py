@@ -92,6 +92,7 @@ def make_dataset(cfg, split: str = "train") -> LeRobotDataset | MultiLeRobotData
 
     if isinstance(cfg.dataset_repo_id, str):
         root = cfg.get("dataset_local_root_dir", None)
+        is_relative_traj = cfg.get("dataset_is_relative_traj", False)
         dataset = LeRobotDataset(
             cfg.dataset_repo_id,
             split="train",
@@ -99,15 +100,8 @@ def make_dataset(cfg, split: str = "train") -> LeRobotDataset | MultiLeRobotData
             image_transforms=image_transforms,
             video_backend=cfg.video_backend,
             root=root,
+            is_relative_traj=is_relative_traj,
         )
-#        val_dataset = LeRobotDataset(
-#            cfg.val_dataset_repo_id,
-#            split="train",
-#            delta_timestamps=cfg.training.get("delta_timestamps"),
-#            image_transforms=image_transforms,
-#            video_backend=cfg.video_backend,
-#            root=root,
-#        )
     else:
         dataset = MultiLeRobotDataset(
             cfg.dataset_repo_id,

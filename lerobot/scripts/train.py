@@ -292,6 +292,12 @@ def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = No
     torch.backends.cudnn.benchmark = True
     torch.backends.cuda.matmul.allow_tf32 = True
 
+    #resolve_delta_timestamps(cfg)
+    #import pickle
+    #with open('/home/ubuntu/efs/sfeng/lerobot_stupid_delta_timestamp.pkl', 'wb') as handle:
+    #    pickle.dump(dict(cfg.training.delta_timestamps), handle)
+    #import pdb; pdb.set_trace()
+
     logging.info("make_dataset")
     offline_dataset = make_dataset(cfg)
     if isinstance(offline_dataset, MultiLeRobotDataset):

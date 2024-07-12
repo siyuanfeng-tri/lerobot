@@ -59,6 +59,7 @@ from lerobot.common.datasets.compute_stats import compute_stats
 from lerobot.common.datasets.lerobot_dataset import CODEBASE_VERSION, LeRobotDataset
 from lerobot.common.datasets.utils import flatten_dict
 
+import pickle
 
 def get_from_raw_to_lerobot_format_fn(raw_format: str):
     if raw_format == "pusht_zarr":
@@ -202,12 +203,18 @@ def push_dataset_to_hub(
         raw_dir, videos_dir, fps, video, episodes
     )
 
+    # so facked up
+    with open('/home/ubuntu/efs/sfeng/lerobot_stupid_delta_timestamp.pkl', 'rb') as handle:
+        delta_timestamps = pickle.load(handle)
+
     lerobot_dataset = LeRobotDataset.from_preloaded(
         repo_id=repo_id,
         hf_dataset=hf_dataset,
         episode_data_index=episode_data_index,
         info=info,
         videos_dir=videos_dir,
+        delta_timestamps=delta_timestamps,
+        is_relative_traj=True,
     )
     stats = compute_stats(lerobot_dataset, batch_size, num_workers)
 

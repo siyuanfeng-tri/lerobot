@@ -34,9 +34,251 @@ from lerobot.common.datasets.utils import (
     reset_episode_index,
 )
 from lerobot.common.datasets.video_utils import VideoFrame, load_from_videos
+import numpy as np
 
 DATA_DIR = Path(os.environ["DATA_DIR"]) if "DATA_DIR" in os.environ else None
 CODEBASE_VERSION = "v1.4"
+
+
+def _to_numpy(x):
+    if isinstance(x, np.ndarray):
+        return x
+    else:
+        return x.cpu().detach().numpy()
+
+
+def mat_to_pose9d(mat):
+    """
+    Takes a [N, 4, 4] np array of transformations and convert to [N, 9].
+    Inverse of pose9d_to_mat()
+    """
+    # TODO(sfeng): test this function
+    pos = mat[..., :3, 3]
+    rotmat = mat[..., :3, :3]
+    d6 = mat_to_rot6d(rotmat)
+    d9 = np.concatenate([pos, d6], axis=-1)
+    return d9
+
+
+def pose9d_to_mat(d9):
+    """
+    Takes a [N, 9] np array and convert to [N, 4, 4] transformations.
+    Each row of input is assumed to be xyz, 6d rotation.
+    """
+    # TODO(sfeng): test this function
+    pos = d9[..., :3]
+    d6 = d9[..., 3:]
+    rotmat = rot6d_to_mat(d6)
+    out = np.zeros(d9.shape[:-1] + (4, 4), dtype=d9.dtype)
+    out[..., :3, :3] = rotmat
+    out[..., :3, 3] = pos
+    out[..., 3, 3] = 1
+    return out
+
+
+def normalize(vec, eps=1e-12):
+    norm = np.linalg.norm(vec, axis=-1)
+    norm = np.maximum(norm, eps)
+    out = (vec.T / norm).T
+    return out
+
+
+def rot6d_to_mat(d6):
+    """
+    Takes a [N, 6] np array and convert to [N, 3, 3] rotation matrices.
+    The input is assumed to be the first 2 rows of a rotation matrix.
+    """
+    # TODO(sfeng): test this function
+    a1, a2 = d6[..., :3], d6[..., 3:]
+    b1 = normalize(a1)
+    b2 = a2 - np.sum(b1 * a2, axis=-1, keepdims=True) * b1
+    b2 = normalize(b2)
+    b3 = np.cross(b1, b2, axis=-1)
+    out = np.stack((b1, b2, b3), axis=-2)
+    return out
+
+
+def mat_to_rot6d(mat):
+    """
+    Takes a [N, 3, 3] np array and convert to [N, 6] array.
+    Inverse of rot6d_to_mat().
+    """
+    # TODO(sfeng): test this function
+    batch_dim = mat.shape[:-2]
+    out = mat[..., :2, :].copy().reshape(batch_dim + (6,))
+    return out
+
+
+def convert_pose_mat_rep(pose_mat, X_A_C, pose_rep="abs", backward=False):
+    """
+    Convert the [N, 4, 4] `pose_mat` pose trajectory depending on `pose_rep`,
+    which can be "abs" or "relative".
+    In "abs" mode:
+        - `pose_mat` is directly returned.
+    In "relative" mode:
+        - when "backward" is False, `pose_mat` is treated as X_A_B_traj,
+            and this func returns X_C_B_traj.
+        - when "backward" is True, `pose_mat` is treated as X_C_B_traj,
+            and this func returns X_A_B_traj.
+
+    A concrete example for converting a trajectory of ee pose in world frame
+    (X_W_EE) to a trajectory of ee pose wrt some other frame in world (X_W_F)
+    X_F_EE = convert_pose_mat_rep(
+        X_W_EE, X_W_F, pose_rep="relative", backward=False
+    )
+    To convert X_F_EE to X_W_EE again:
+    X_W_EE = convert_pose_mat_rep(
+        X_F_EE, X_W_F, pose_rep="relative", backward=True
+    )
+    """
+    if not backward:
+        # training transform
+        if pose_rep == "abs":
+            return pose_mat
+        elif pose_rep == "relative":
+            out = np.linalg.inv(X_A_C) @ pose_mat
+            return out
+        else:
+            raise RuntimeError(f"Unsupported pose_rep: {pose_rep}")
+
+    else:
+        # eval transform
+        if pose_rep == "abs":
+            return pose_mat
+        elif pose_rep == "relative":
+            out = X_A_C @ pose_mat
+            return out
+        else:
+            raise RuntimeError(f"Unsupported pose_rep: {pose_rep}")
+
+
+def change_to_relative_batch(item, base_index):
+    old_state = item["observation.state"].clone()
+    old_action = item["action"].clone()
+    # item['observation.state'] is 2 x 20
+    # item['action'] is 16 x 20
+
+    # state is this order
+    #"robot__actual__poses__right::panda__xyz",
+    #"robot__actual__poses__right::panda__rot_6d",
+    #"robot__actual__poses__left::panda__xyz",
+    #"robot__actual__poses__left::panda__rot_6d",
+    #"robot__actual__grippers__right::panda_hand",
+    #"robot__actual__grippers__left::panda_hand",
+    pose_start_idx = {
+        "left": 9,
+        "right": 0,
+    }
+    X_W_arm_traj = {}
+
+    def _get_pose_traj(vec, start_idx):
+        return pose9d_to_mat(
+            _to_numpy(vec[:, start_idx:start_idx + 9])
+        )
+
+    for arm in ["left", "right"]:
+        start_idx = pose_start_idx[arm]
+        X_W_arm_traj[arm] = _get_pose_traj(item['observation.state'], start_idx)
+
+    vec_other_arm_trajs = []
+    # add relative between left and right
+    new_state = item["observation.state"].clone()
+    for arm in ["left", "right"]:
+        other_arm = "right" if arm == "left" else "left"
+        X_W_other_traj = _get_pose_traj(
+            item['observation.state'], pose_start_idx[other_arm]
+        )
+
+        X_other_arm_traj = convert_pose_mat_rep(
+            X_W_arm_traj[arm],
+            X_A_C=X_W_other_traj[base_index],
+            pose_rep="relative",
+            backward=False,
+        )
+        vec_other_arm_trajs.append(
+            torch.from_numpy(mat_to_pose9d(X_other_arm_traj))
+        )
+
+    # action is this order
+    # r xyz, r rot6d, r gripper
+    # l xyz, l rot6d, l gripper
+    action_start_idx = {"left": 10, "right": 0}
+
+    new_action = item["action"].clone()
+    for arm in ["left", "right"]:
+        # change base frame to current time steps' arm pose
+        X_cur_arm_traj = convert_pose_mat_rep(
+            X_W_arm_traj[arm],
+            X_A_C=X_W_arm_traj[arm][base_index],
+            pose_rep="relative",
+            backward=False,
+        )
+        vec_cur_arm_traj = mat_to_pose9d(X_cur_arm_traj)
+        # overwrite obs
+        pose_start = pose_start_idx[arm]
+        pose_end = pose_start + 9
+        new_state[:, pose_start:pose_end] = torch.from_numpy(vec_cur_arm_traj)
+
+        if "action" in item:
+            u_start = action_start_idx[arm]
+            u_end = u_start + 9
+            X_W_action_traj = pose9d_to_mat(
+                _to_numpy(item["action"][:, u_start:u_end])
+            )
+            # change base frame to current time steps' arm pose
+            X_cur_action_traj = convert_pose_mat_rep(
+                X_W_action_traj,
+                X_A_C=X_W_arm_traj[arm][base_index],
+                pose_rep="relative",
+                backward=False,
+            )
+
+            # overwrite action
+            vec_cur_action_traj = mat_to_pose9d(X_cur_action_traj)
+            new_action[:, u_start:u_end] = torch.from_numpy(vec_cur_action_traj)
+
+    # append interhand delta pose
+    new_state = torch.cat([new_state] + vec_other_arm_trajs, axis=-1)
+
+    item['observation.state'] = new_state
+    item['action'] = new_action
+    return item, old_state, old_action
+
+
+def change_rel_action_to_abs(
+    *,
+    X_W_arm,
+    vec_cur_action_traj,
+):
+    """
+    Converts relative action trajectory back to world frame using current end
+    effector poses in the world frame.
+    Args:
+        X_W_arm: dict from arm name to 4d transformation matrix. Keys should
+            be [left::panda, right::panda]
+        vec_cur_action_traj: (N, 20) actions. The layout need to match spartan
+            format
+    """
+
+    # go from relative tback to absolute
+    action_start_idx = {"left": 10, "right": 0}
+    vec_W_action_traj = _to_numpy(vec_cur_action_traj)
+
+    for arm in ["left", "right"]:
+        start_idx = action_start_idx[arm]
+        X_cur_action_traj = pose9d_to_mat(
+            _to_numpy(vec_cur_action_traj[:, start_idx : start_idx + 9])
+        )
+        X_W_action_traj = convert_pose_mat_rep(
+            X_cur_action_traj,
+            X_A_C=X_W_arm[arm],
+            pose_rep="relative",
+            backward=True,
+        )
+        my_vec_W_action_traj = mat_to_pose9d(X_W_action_traj)
+        vec_W_action_traj[:, start_idx : start_idx + 9] = my_vec_W_action_traj
+
+    return vec_W_action_traj
 
 
 class LeRobotDataset(torch.utils.data.Dataset):
@@ -49,6 +291,7 @@ class LeRobotDataset(torch.utils.data.Dataset):
         image_transforms: Callable | None = None,
         delta_timestamps: dict[list[float]] | None = None,
         video_backend: str | None = None,
+        is_relative_traj: bool = False,
     ):
         super().__init__()
         self.repo_id = repo_id
@@ -71,6 +314,9 @@ class LeRobotDataset(torch.utils.data.Dataset):
         if self.video:
             self.videos_dir = load_videos(repo_id, version, root)
             self.video_backend = video_backend if video_backend is not None else "pyav"
+        self.is_relative_traj = is_relative_traj
+
+        assert self.is_relative_traj
 
     @property
     def fps(self) -> int:
@@ -135,7 +381,6 @@ class LeRobotDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         item = self.hf_dataset[idx]
-
         if self.delta_timestamps is not None:
             item = load_previous_and_future_frames(
                 item,
@@ -143,6 +388,26 @@ class LeRobotDataset(torch.utils.data.Dataset):
                 self.episode_data_index,
                 self.delta_timestamps,
                 self.tolerance_s,
+            )
+
+        if self.is_relative_traj:
+            cur_idx = 1
+            item, old_state, old_action = change_to_relative_batch(item, base_index = cur_idx)
+
+            X_W_arm = {}
+            pose_start_idx = {
+                "left": 9,
+                "right": 0,
+            }
+            for arm in ["left", "right"]:
+                start_idx = pose_start_idx[arm]
+                X_W_arm[arm] = pose9d_to_mat(
+                    _to_numpy(old_state[cur_idx, start_idx:start_idx+9])
+                )
+
+            recovered_old_action = change_rel_action_to_abs(
+                X_W_arm=X_W_arm,
+                vec_cur_action_traj=item['action'],
             )
 
         if self.video:

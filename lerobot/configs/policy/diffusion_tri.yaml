@@ -7,7 +7,8 @@
 seed: 100000
 skill: ???
 dataset_repo_id: ${skill}
-dataset_local_root_dir: "/home/ubuntu/efs/sfeng/lerobot/dataset/"
+dataset_local_root_dir: "/home/ubuntu/efs/sfeng/lerobot/rel_dataset/"
+dataset_is_relative_traj: true
 
 wandb:
   enable: true
@@ -45,7 +46,7 @@ training:
   log_freq: 250
   save_checkpoint: true
 
-  num_workers: 8
+  num_workers: 0
   # batch_size: 128
   # for vit b
   batch_size: 30
@@ -122,7 +123,7 @@ policy:
   diffusion_step_embed_dim: 128
   use_film_scale_modulation: True
   # Noise scheduler.
-  noise_scheduler_type: DDPM
+  noise_scheduler_type: DDIM
   num_train_timesteps: 100
   beta_schedule: squaredcos_cap_v2
   beta_start: 0.0001
@@ -132,7 +133,7 @@ policy:
   clip_sample_range: 1.0
 
   # Inference
-  num_inference_steps: null  # if not provided, defaults to `num_train_timesteps`
+  num_inference_steps: 8  # if not provided, defaults to `num_train_timesteps`
 
   # TODO(alexander-soare): Remove these from the policy config.
   use_ema: true
