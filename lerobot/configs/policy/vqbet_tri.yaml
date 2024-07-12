@@ -3,7 +3,18 @@
 # Defaults for training for the PushT dataset.
 
 seed: 100000
-dataset_repo_id: notmahi/tutorial-tri-BimanualPutRedBellPepperInBin
+skill: ???
+dataset_repo_id: ${skill}
+dataset_local_root_dir: "/home/ubuntu/efs/sfeng/lerobot/dataset/"
+
+wandb:
+  enable: true
+
+hydra:
+  run:
+    dir: /home/ubuntu/efs/results/lerobot/outputs/train/${now:%Y-%m-%d}/${now:%H-%M-%S}_${env.name}_${policy.name}_${hydra.job.name}
+  job:
+    name: ${skill}
 
 override_dataset_stats:
   observation.images.wrist_right_minus:
@@ -33,6 +44,7 @@ training:
   num_workers: 8
 
   batch_size: 32
+
   grad_clip_norm: 10
   lr: 1.0e-4
   lr_scheduler: cosine
@@ -91,11 +103,11 @@ policy:
 
   # Architecture / modeling.
   # Vision backbone.
-  vision_backbone: resnet18
+  vision_backbone: vit_b_16
+  pretrained_backbone_weights: IMAGENET1K_SWAG_LINEAR_V1
   resize_shape: [256, 342]
   crop_shape: [224, 224]
   crop_is_random: True
-  pretrained_backbone_weights: null
   use_spatial_softmax: False
   use_group_norm: True
   spatial_softmax_num_keypoints: 32
