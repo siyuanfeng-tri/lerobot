@@ -18,6 +18,7 @@ Contains utilities to process raw data format of npz files from TRI sim environm
 """
 
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -63,6 +64,8 @@ def load_from_raw(
 ):
     with open(raw_dir / DATA_FILE, "r") as f:
         raw_data = json.load(f)
+    if not videos_dir.exists():
+        os.makedirs(videos_dir, exist_ok=True)
     num_episodes = len(raw_data)
     ep_id_to_ep_key = list(raw_data.keys())
 
