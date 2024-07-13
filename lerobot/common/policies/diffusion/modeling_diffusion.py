@@ -43,6 +43,12 @@ from lerobot.common.policies.utils import (
     get_dtype_from_parameters,
     populate_queues,
 )
+from lerobot.common.datasets.lerobot_dataset import (
+    change_to_relative_batch,
+    change_rel_action_to_abs,
+    pose9d_to_mat,
+    _to_numpy,
+)
 
 
 class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
@@ -97,10 +103,12 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
     def reset(self):
         """Clear observation and action queues. Should be called on `env.reset()`"""
         self._queues = {
-            "observation.images": deque(maxlen=self.config.n_obs_steps),
+            #"observation.images": deque(maxlen=self.config.n_obs_steps),
             "observation.state": deque(maxlen=self.config.n_obs_steps),
             "action": deque(maxlen=self.config.n_action_steps),
         }
+        for k in self.expected_image_keys:
+            self._queues[k] = deque(maxlen=self.config.n_obs_steps)
 
     @torch.no_grad
     def select_action(self, batch: dict[str, Tensor]) -> Tensor:
@@ -124,15 +132,33 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
         "horizon" may not the best name to describe what the variable actually means, because this period is
         actually measured from the first observation which (if `n_obs_steps` > 1) happened in the past.
         """
-        batch = self.normalize_inputs(batch)
-        if len(self.expected_image_keys) > 0:
-            batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
+        # batch = self.normalize_inputs(batch)
+        # if len(self.expected_image_keys) > 0:
+        #     batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
         # Note: It's important that this happens after stacking the images into a single key.
         self._queues = populate_queues(self._queues, batch)
 
+        device = batch['observation.state'].device
         if len(self._queues["action"]) == 0:
             # stack n latest observations from the queue
             batch = {k: torch.stack(list(self._queues[k]), dim=1) for k in batch if k in self._queues}
+
+            # change to rel traj, then call normalizer
+            assert batch['observation.state'].shape[0] == 1
+            rel_batch = {'observation.state': batch['observation.state'].squeeze(0).cpu()}
+            base_index = batch['observation.state'].shape[1] - 1
+            rel_batch, old_state, old_action = change_to_relative_batch(rel_batch, base_index = base_index)
+            for k, v in rel_batch.items():
+                rel_batch[k] = v.unsqueeze(0).to(device)
+
+            for k in self.expected_image_keys:
+                rel_batch[k] = batch[k]
+
+            # call normalizer
+            batch = self.normalize_inputs(rel_batch)
+            if len(self.expected_image_keys) > 0:
+                batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
+
             if not self.training and self.ema_diffusion is not None:
                 actions = self.ema_diffusion.generate_actions(batch)
             else:
@@ -141,7 +167,27 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
             # TODO(rcadene): make above methods return output dictionary?
             actions = self.unnormalize_outputs({"action": actions})["action"]
 
-            self._queues["action"].extend(actions.transpose(0, 1))
+            rel_actions = actions.squeeze(0).cpu()
+
+            # convert to abs traj tape
+            X_W_arm = {}
+            pose_start_idx = {
+                "left": 9,
+                "right": 0,
+            }
+            for arm in ["left", "right"]:
+                start_idx = pose_start_idx[arm]
+                X_W_arm[arm] = pose9d_to_mat(
+                    _to_numpy(old_state[base_index, start_idx:start_idx+9])
+                )
+
+            abs_actions = change_rel_action_to_abs(
+                X_W_arm=X_W_arm,
+                vec_cur_action_traj=rel_actions
+            )
+            abs_actions = torch.from_numpy(abs_actions).unsqueeze(0).to(device)
+
+            self._queues["action"].extend(abs_actions.transpose(0, 1))
 
         action = self._queues["action"].popleft()
         return action
