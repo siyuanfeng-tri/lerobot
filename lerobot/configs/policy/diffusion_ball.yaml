@@ -30,8 +30,8 @@ training:
   drop_n_last_frames: 7  # ${policy.horizon} - ${policy.n_action_steps} - ${policy.n_obs_steps} + 1
 
 eval:
-  n_episodes: 10
-  batch_size: 10
+  n_episodes: 50
+  batch_size: 50
 
 policy:
   name: diffusion
