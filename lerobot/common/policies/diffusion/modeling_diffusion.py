@@ -151,11 +151,14 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
             for k, v in rel_batch.items():
                 rel_batch[k] = v.unsqueeze(0).to(device)
 
+            # cc images.
             for k in self.expected_image_keys:
                 rel_batch[k] = batch[k]
 
             # call normalizer
             batch = self.normalize_inputs(rel_batch)
+
+            # stack images
             if len(self.expected_image_keys) > 0:
                 batch["observation.images"] = torch.stack([batch[k] for k in self.expected_image_keys], dim=-4)
 
@@ -167,27 +170,30 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
             # TODO(rcadene): make above methods return output dictionary?
             actions = self.unnormalize_outputs({"action": actions})["action"]
 
-            rel_actions = actions.squeeze(0).cpu()
+            if True:
+                rel_actions = actions.squeeze(0).cpu()
 
-            # convert to abs traj tape
-            X_W_arm = {}
-            pose_start_idx = {
-                "left": 9,
-                "right": 0,
-            }
-            for arm in ["left", "right"]:
-                start_idx = pose_start_idx[arm]
-                X_W_arm[arm] = pose9d_to_mat(
-                    _to_numpy(old_state[base_index, start_idx:start_idx+9])
+                # convert to abs traj tape
+                X_W_arm = {}
+                pose_start_idx = {
+                    "left": 9,
+                    "right": 0,
+                }
+                for arm in ["left", "right"]:
+                    start_idx = pose_start_idx[arm]
+                    X_W_arm[arm] = pose9d_to_mat(
+                        _to_numpy(old_state[base_index, start_idx:start_idx+9])
+                    )
+
+                abs_actions = change_rel_action_to_abs(
+                    X_W_arm=X_W_arm,
+                    vec_cur_action_traj=rel_actions
                 )
+                abs_actions = torch.from_numpy(abs_actions).unsqueeze(0).to(device)
 
-            abs_actions = change_rel_action_to_abs(
-                X_W_arm=X_W_arm,
-                vec_cur_action_traj=rel_actions
-            )
-            abs_actions = torch.from_numpy(abs_actions).unsqueeze(0).to(device)
-
-            self._queues["action"].extend(abs_actions.transpose(0, 1))
+                self._queues["action"].extend(abs_actions.transpose(0, 1))
+            else:
+                self._queues["action"].extend(actions.transpose(0, 1))
 
         action = self._queues["action"].popleft()
         return action
