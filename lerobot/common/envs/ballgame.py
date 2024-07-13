@@ -129,6 +129,10 @@ class BallgameEnv(gym.Env):
         self.ball_velocity *= self.damping
         next_ball = self.ball + self.ball_velocity
 
+        # Clip them in range.
+        next_ball[0] = np.clip(next_ball[0], 0, self.width - 1)
+        next_ball[1] = np.clip(next_ball[1], 0, self.height - 1)
+
         col = int(next_ball[0] // self.cell_size)
         row = int(next_ball[1] // self.cell_size)
 
