@@ -154,7 +154,10 @@ def convert_pose_mat_rep(pose_mat, X_A_C, pose_rep="abs", backward=False):
 
 def change_to_relative_batch(item, base_index):
     old_state = item["observation.state"].clone()
-    old_action = item["action"].clone()
+    if "action" in item:
+        old_action = item["action"].clone()
+    else:
+        old_action = None
     # item['observation.state'] is 2 x 20
     # item['action'] is 16 x 20
 
@@ -204,7 +207,9 @@ def change_to_relative_batch(item, base_index):
     # l xyz, l rot6d, l gripper
     action_start_idx = {"left": 10, "right": 0}
 
-    new_action = item["action"].clone()
+    if "action" in item:
+        new_action = item["action"].clone()
+
     for arm in ["left", "right"]:
         # change base frame to current time steps' arm pose
         X_cur_arm_traj = convert_pose_mat_rep(
@@ -241,7 +246,8 @@ def change_to_relative_batch(item, base_index):
     new_state = torch.cat([new_state] + vec_other_arm_trajs, axis=-1)
 
     item['observation.state'] = new_state
-    item['action'] = new_action
+    if "action" in item:
+        item['action'] = new_action
     return item, old_state, old_action
 
 
