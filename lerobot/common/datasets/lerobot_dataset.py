@@ -17,6 +17,7 @@ import logging
 import os
 from pathlib import Path
 from typing import Callable
+import copy
 
 import datasets
 import torch
@@ -268,12 +269,13 @@ def change_rel_action_to_abs(
 
     # go from relative tback to absolute
     action_start_idx = {"left": 10, "right": 0}
-    vec_W_action_traj = _to_numpy(vec_cur_action_traj)
+    vec_cur_action_traj = _to_numpy(vec_cur_action_traj)
+    vec_W_action_traj = copy.deepcopy(vec_cur_action_traj)
 
     for arm in ["left", "right"]:
         start_idx = action_start_idx[arm]
         X_cur_action_traj = pose9d_to_mat(
-            _to_numpy(vec_cur_action_traj[:, start_idx : start_idx + 9])
+            vec_cur_action_traj[:, start_idx : start_idx + 9]
         )
         X_W_action_traj = convert_pose_mat_rep(
             X_cur_action_traj,
@@ -397,24 +399,25 @@ class LeRobotDataset(torch.utils.data.Dataset):
             )
 
         if self.is_relative_traj:
-            cur_idx = 1
+            cur_idx = item['observation.state'].shape[0] - 1
+
             item, old_state, old_action = change_to_relative_batch(item, base_index = cur_idx)
 
-            X_W_arm = {}
-            pose_start_idx = {
-                "left": 9,
-                "right": 0,
-            }
-            for arm in ["left", "right"]:
-                start_idx = pose_start_idx[arm]
-                X_W_arm[arm] = pose9d_to_mat(
-                    _to_numpy(old_state[cur_idx, start_idx:start_idx+9])
-                )
-
-            recovered_old_action = change_rel_action_to_abs(
-                X_W_arm=X_W_arm,
-                vec_cur_action_traj=item['action'],
-            )
+            # X_W_arm = {}
+            # pose_start_idx = {
+            #     "left": 9,
+            #     "right": 0,
+            # }
+            # for arm in ["left", "right"]:
+            #     start_idx = pose_start_idx[arm]
+            #     X_W_arm[arm] = pose9d_to_mat(
+            #         _to_numpy(old_state[cur_idx, start_idx:start_idx+9])
+            #     )
+            #
+            # recovered_old_action = change_rel_action_to_abs(
+            #     X_W_arm=X_W_arm,
+            #     vec_cur_action_traj=item['action'],
+            # )
 
         if self.video:
             item = load_from_videos(
