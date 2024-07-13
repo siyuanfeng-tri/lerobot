@@ -113,7 +113,7 @@ class MLPBCPolicy(nn.Module, PyTorchModelHubMixin):
         # Action queue logic for n_action_steps > 1. When the action_queue is depleted, populate it by
         # querying the policy.
         if len(self._action_queue) == 0:
-            actions = self.model(batch)[0][:, : self.config.n_action_steps]
+            actions = self.model(batch)[:, : self.config.n_action_steps, :]
 
             # TODO(rcadene): make _forward return output dictionary?
             actions = self.unnormalize_outputs({"action": actions})["action"]
