@@ -30,7 +30,31 @@ def make_env(cfg: DictConfig, n_envs: int | None = None) -> gym.vector.VectorEnv
     package_name = f"gym_{cfg.env.name}"
 
     try:
-        importlib.import_module(package_name)
+        if package_name != "gym_ballgame":
+            importlib.import_module(package_name)
+        else:
+            import lerobot.common.envs.ballgame as ballgame
+
+            gym.register(
+                id="gym_ballgame/Ballgame-v0",
+                entry_point="lerobot.common.envs.ballgame:BallgameEnv",
+                max_episode_steps=ballgame.BallgameEnv.DEFAULT_TIMEOUT,
+                kwargs={
+                    "maze": ballgame.BallgameEnv.DEFAULT_MAZE,
+                    "key_locations": ballgame.BallgameEnv.DEFAULT_KEY_LOCATIONS,
+                    "width": ballgame.BallgameEnv.DEFAULT_WIDTH,
+                    "height": ballgame.BallgameEnv.DEFAULT_HEIGHT,
+                    "cell_size": ballgame.BallgameEnv.DEFAULT_CELL_SIZE,
+                    "ball_radius": ballgame.BallgameEnv.DEFAULT_BALL_RADIUS,
+                    "force_magnitude": ballgame.BallgameEnv.DEFAULT_FORCE_MAGNITUDE,
+                    "mass": ballgame.BallgameEnv.DEFAULT_MASS,
+                    "damping": ballgame.BallgameEnv.DEFAULT_DAMPING,
+                    "fps": ballgame.BallgameEnv.DEFAULT_FPS,
+                    "timeout": 1000,
+                    "reset_location_noise_scale": 0.1,
+                },
+            )
+
     except ModuleNotFoundError as e:
         print(
             f"{package_name} is not installed. Please install it with `pip install 'lerobot[{cfg.env.name}]'`"

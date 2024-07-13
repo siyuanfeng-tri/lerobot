@@ -7,14 +7,15 @@ dataset_repo_id: notmahi/tutorial-ball
 
 
 training:
-  offline_steps: 20000
+  # 20k for VQ-VAE training, 80k for minGPT training
+  offline_steps: 100000
   online_steps: 0
-  eval_freq: 20000
-  save_freq: 20000
+  eval_freq: 5000
+  save_freq: 5000
   log_freq: 250
   save_checkpoint: true
 
-  batch_size: 64
+  batch_size: 128
   grad_clip_norm: 10
   lr: 1.0e-4
   lr_scheduler: cosine
@@ -43,9 +44,9 @@ policy:
   name: vqbet
 
   # Input / output structure.
-  n_obs_steps: 5
-  n_action_pred_token: 7
-  action_chunk_size: 5
+  n_obs_steps: 2
+  n_action_pred_token: 3
+  action_chunk_size: 2
 
   input_shapes:
     observation.state: ["${env.state_dim}"]
@@ -69,19 +70,19 @@ policy:
   # VQ-VAE
   n_vqvae_training_steps: ${training.n_vqvae_training_steps}
   vqvae_n_embed: 16
-  vqvae_embedding_dim: 256
-  vqvae_enc_hidden_dim: 128
+  vqvae_embedding_dim: 32
+  vqvae_enc_hidden_dim: 64
   # VQ-BeT
   gpt_block_size: 500
-  gpt_input_dim: 512
-  gpt_output_dim: 512
-  gpt_n_layer: 8
-  gpt_n_head: 8
-  gpt_hidden_dim: 512
+  gpt_input_dim: 128
+  gpt_output_dim: 128
+  gpt_n_layer: 4
+  gpt_n_head: 4
+  gpt_hidden_dim: 256
   dropout: 0.1
-  mlp_hidden_dim: 1024
-  offset_loss_weight: 10000.
+  mlp_hidden_dim: 128
+  offset_loss_weight: 100.
   primary_code_loss_weight: 5.0
   secondary_code_loss_weight: 0.5
   bet_softmax_temperature: 0.1
-  sequentially_select: False
+  sequentially_select: true

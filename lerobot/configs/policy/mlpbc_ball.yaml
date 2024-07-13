@@ -11,12 +11,12 @@ dataset_repo_id: notmahi/tutorial-ball
 training:
   offline_steps: 80000
   online_steps: 0
-  eval_freq: 10000
-  save_freq: 100000
+  eval_freq: 5000
+  save_freq: 5000
   log_freq: 250
   save_checkpoint: true
 
-  batch_size: 8
+  batch_size: 128
   lr: 1e-5
   lr_backbone: 1e-5
   weight_decay: 1e-4
@@ -47,19 +47,19 @@ policy:
 
   # Normalization / Unnormalization
   input_normalization_modes:
-    observation.state: mean_std
+    observation.state: min_max
   output_normalization_modes:
-    action: mean_std
+    action: min_max
 
   # Architecture.
   use_l1_loss: false
-  num_hidden_layers: 2
+  num_hidden_layers: 3
   # Vision backbone.
   vision_backbone: resnet18
   pretrained_backbone_weights: ResNet18_Weights.IMAGENET1K_V1
   replace_final_stride_with_dilation: false
   # Transformer layers.
-  dim_model: 512
+  dim_model: 256
 
   # Inference.
   temporal_ensemble_momentum: null

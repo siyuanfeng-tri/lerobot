@@ -1,21 +1,17 @@
 # @package _global_
 
-# Defaults for training for the PushT dataset as per https://github.com/real-stanford/diffusion_policy.
-# Note: We do not track EMA model weights as we discovered it does not improve the results. See
-#       https://github.com/huggingface/lerobot/pull/134 for more details.
-
 seed: 100000
 dataset_repo_id: notmahi/tutorial-ball
 
 training:
-  offline_steps: 20000
+  offline_steps: 80000
   online_steps: 0
   eval_freq: 5000
   save_freq: 5000
   log_freq: 250
   save_checkpoint: true
 
-  batch_size: 32
+  batch_size: 128
   grad_clip_norm: 10
   lr: 1.0e-4
   lr_scheduler: cosine

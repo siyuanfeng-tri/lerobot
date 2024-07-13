@@ -314,7 +314,7 @@ class VQBeTModel(nn.Module):
 
     def forward(self, batch: dict[str, Tensor], rollout: bool) -> Tensor:
         # Input validation.
-        assert set(batch).issuperset({"observation.state", "observation.images"})
+        assert "observation.state" in batch or "observation.images" in batch
         batch_size, n_obs_steps = batch["observation.state"].shape[:2]
         assert n_obs_steps == self.config.n_obs_steps
 
