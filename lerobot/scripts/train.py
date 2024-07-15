@@ -45,6 +45,10 @@ from lerobot.common.utils.utils import (
 )
 from lerobot.scripts.eval import eval_policy
 
+from lerobot.common.dataset.spartan.spartan_pose_dataset import SpartanImageDataset
+from lerobot.common.dataset.spartan.path_util import resolve_glob_type_to_list
+import copy
+
 
 def make_optimizer_and_scheduler(cfg, policy):
     if cfg.policy.name in ["act", "mlpbc"]:
@@ -229,6 +233,34 @@ def log_eval_info(logger, info, step, cfg, dataset, is_offline):
     logger.log_dict(info, step, mode="eval")
 
 
+def spartan_to_zarr(cfg):
+    replay_buffer_path = cfg.task.dataset["replay_buffer_path"]
+    has_dataset = os.path.exists(
+        expandvars(expanduser(replay_buffer_path))
+    )
+    if has_dataset:
+        # don't need to do anything here.
+        return
+
+    episode_path_globs = resolve_glob_type_to_list(
+        cfg.task.dataset.episode_path_globs
+    )
+    print("\n\nMaking a on-disk zarr dataset from:")
+    for eps in episode_path_globs:
+        print(f"  {eps}")
+
+    # a hack to force rebuild replay_buffer from spartan
+    cfg = copy.deepcopy(cfg)
+    cfg.task.dataset.replay_buffer_path = None
+    dataset = hydra.utils.instantiate(cfg.task.dataset)
+    replay_buffer = dataset.replay_buffer
+
+    replay_buffer.save_to_path(
+        zarr_path=replay_buffer_path,
+    )
+    print(f"  Saved replay buffer to {replay_buffer_path}")
+
+
 def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = None):
     if out_dir is None:
         raise NotImplementedError()
@@ -293,12 +325,15 @@ def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = No
     torch.backends.cuda.matmul.allow_tf32 = True
 
     logging.info("make_dataset")
-    offline_dataset = make_dataset(cfg)
-    if isinstance(offline_dataset, MultiLeRobotDataset):
-        logging.info(
-            "Multiple datasets were provided. Applied the following index mapping to the provided datasets: "
-            f"{pformat(offline_dataset.repo_id_to_index , indent=2)}"
-        )
+    spartan_to_zarr(cfg)
+
+    # offline_dataset = make_dataset(cfg)
+    # if isinstance(offline_dataset, MultiLeRobotDataset):
+    #    logging.info(
+    #        "Multiple datasets were provided. Applied the following index mapping to the provided datasets: "
+    #        f"{pformat(offline_dataset.repo_id_to_index , indent=2)}"
+    #    )
+    import pdb; pdb.set_trace()
 
     # Create environment used for evaluating checkpoints during training on simulation data.
     # On real-world data, no need to create an environment as evaluations are done outside train.py,
