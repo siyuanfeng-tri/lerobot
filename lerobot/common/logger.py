@@ -48,6 +48,9 @@ def cfg_to_group(cfg: DictConfig, return_list: bool = False) -> list[str] | str:
         f"seed:{cfg.seed}",
         "spartan",
     ]
+    # wandb tag max length is 64 char
+    lst = [x[:64] for x in lst]
+
     return lst if return_list else "-".join(lst)
 
 
