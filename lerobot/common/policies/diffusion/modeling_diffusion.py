@@ -69,15 +69,18 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
         if config is None:
             config = DiffusionConfig()
         self.config = config
-        self.normalize_inputs = Normalize(
-            config.input_shapes, config.input_normalization_modes, dataset_stats
-        )
-        self.normalize_targets = Normalize(
-            config.output_shapes, config.output_normalization_modes, dataset_stats
-        )
-        self.unnormalize_outputs = Unnormalize(
-            config.output_shapes, config.output_normalization_modes, dataset_stats
-        )
+
+        self.normalizer = dataset_stats
+
+        #self.normalize_inputs = Normalize(
+        #    config.input_shapes, config.input_normalization_modes, dataset_stats
+        #)
+        #self.normalize_targets = Normalize(
+        #    config.output_shapes, config.output_normalization_modes, dataset_stats
+        #)
+        #self.unnormalize_outputs = Unnormalize(
+        #    config.output_shapes, config.output_normalization_modes, dataset_stats
+        #)
 
         # queues are populated during rollout of the policy, they contain the n latest observations and actions
         self._queues = None
@@ -93,6 +96,37 @@ class DiffusionPolicy(nn.Module, PyTorchModelHubMixin):
         self.expected_image_keys = [k for k in config.input_shapes if k.startswith("observation.image")]
 
         self.reset()
+
+    def normalize_inputs(self, batch):
+        # call spartan normalizer
+        nbatch = self.normalizer(batch['obs'])
+
+        # make stacked stuff for lerobot
+        # observation.images
+        for camera in self.expected_image_keys:
+            spartan_camera = camera[len("observation.images."):]
+            batch[camera] = nbatch[spartan_camera]
+
+        # observation.state
+        state_variables = [
+            "robot__actual__poses__right::panda__xyz",
+            "robot__actual__poses__right::panda__rot_6d",
+            "robot__actual__poses__left::panda__xyz",
+            "robot__actual__poses__left::panda__rot_6d",
+            "robot__actual__poses__left__right::panda__xyz",
+            "robot__actual__poses__left__right::panda__rot_6d",
+            "robot__actual__poses__right__left::panda__xyz",
+            "robot__actual__poses__right__left::panda__rot_6d",
+            "robot__actual__grippers__right::panda_hand",
+            "robot__actual__grippers__left::panda_hand",
+        ]
+        batch["observation.state"] = torch.cat([nbatch[x] for x in state_variables], dim=-1)
+
+        return batch
+
+    def normalize_targets(self, batch):
+        batch['action'] = self.normalizer["action"].normalize(batch["action"])
+        return batch
 
     def reset(self):
         """Clear observation and action queues. Should be called on `env.reset()`"""

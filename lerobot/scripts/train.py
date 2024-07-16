@@ -26,6 +26,8 @@ from omegaconf import DictConfig, OmegaConf
 from termcolor import colored
 from torch import nn
 from torch.cuda.amp import GradScaler
+import torchvision
+import einops
 
 from lerobot.common.datasets.factory import make_dataset, resolve_delta_timestamps
 from lerobot.common.datasets.lerobot_dataset import MultiLeRobotDataset
@@ -45,9 +47,13 @@ from lerobot.common.utils.utils import (
 )
 from lerobot.scripts.eval import eval_policy
 
-from lerobot.common.dataset.spartan.spartan_pose_dataset import SpartanImageDataset
-from lerobot.common.dataset.spartan.path_util import resolve_glob_type_to_list
+from lerobot.common.datasets.spartan.normalize_util import save_stats_to_pickle, get_linear_normalizer_from_saved_stats
+from lerobot.common.datasets.spartan.spartan_pose_dataset import SpartanImageDataset
+from lerobot.common.datasets.spartan.path_util import resolve_glob_type_to_list, resolve_path
 import copy
+import os
+
+OmegaConf.register_new_resolver("eval", eval, replace=True)
 
 
 def make_optimizer_and_scheduler(cfg, policy):
@@ -235,19 +241,21 @@ def log_eval_info(logger, info, step, cfg, dataset, is_offline):
 
 def spartan_to_zarr(cfg):
     replay_buffer_path = cfg.task.dataset["replay_buffer_path"]
+    normalizer_path = os.path.join(
+        resolve_path(replay_buffer_path),
+        "normalizer_stats.pkl",
+    )
+
     has_dataset = os.path.exists(
-        expandvars(expanduser(replay_buffer_path))
+        os.path.expandvars(os.path.expanduser(replay_buffer_path))
     )
     if has_dataset:
         # don't need to do anything here.
-        return
-
-    episode_path_globs = resolve_glob_type_to_list(
-        cfg.task.dataset.episode_path_globs
-    )
-    print("\n\nMaking a on-disk zarr dataset from:")
-    for eps in episode_path_globs:
-        print(f"  {eps}")
+        dataset = hydra.utils.instantiate(cfg.task.dataset)
+        normalizer = get_linear_normalizer_from_saved_stats(
+            normalizer_path
+        )
+        return dataset, normalizer
 
     # a hack to force rebuild replay_buffer from spartan
     cfg = copy.deepcopy(cfg)
@@ -259,6 +267,78 @@ def spartan_to_zarr(cfg):
         zarr_path=replay_buffer_path,
     )
     print(f"  Saved replay buffer to {replay_buffer_path}")
+    normalizer = dataset.get_normalizer()
+
+    def _to_numpy(param_dict):
+        result = {}
+        for k, v in param_dict.items():
+            result[k] = v.detach().numpy()
+        return result
+
+    # low_dim_name: stats_dict
+    stats = {
+        k: _to_numpy(v.input_stats) for k, v in normalizer.params_dict.items()
+    }
+    total_size = len(dataset) * dataset.horizon
+
+    save_stats_to_pickle(
+        pkl_path=normalizer_path,
+        stats=stats,
+        num_datapoints=total_size,
+        episode_paths=dataset.replay_buffer.episode_paths,
+    )
+
+    return dataset, normalizer
+
+
+class BatchToTensor(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, x):
+        # assuming (N, H, W, C)
+        N, T, H, W, C = x.shape
+        default_float_dtype = torch.get_default_dtype()
+
+        img = einops.rearrange(x, "b t h w c -> b t c h w")
+        img = img.to(
+            dtype=default_float_dtype,
+            device=x.device,
+        )
+        return img / 255.0
+
+
+def process_batch(batch, tf, n_obs_step, camera_names, device):
+    # process images, this needs to be tensor, chw, normed
+    imgs = []
+    for camera in camera_names:
+        camera = camera[len("observation.images."):]
+        img = batch['obs'][camera][:, :n_obs_step].to(device)
+        batch['obs'][camera] = tf(img)
+
+    # process low dim states, this needs to match mahi's order
+    state_variables = [
+        "robot__actual__poses__right::panda__xyz",
+        "robot__actual__poses__right::panda__rot_6d",
+        "robot__actual__poses__left::panda__xyz",
+        "robot__actual__poses__left::panda__rot_6d",
+        "robot__actual__poses__left__right::panda__xyz",
+        "robot__actual__poses__left__right::panda__rot_6d",
+        "robot__actual__poses__right__left::panda__xyz",
+        "robot__actual__poses__right__left::panda__rot_6d",
+        "robot__actual__grippers__right::panda_hand",
+        "robot__actual__grippers__left::panda_hand",
+    ]
+    for x in state_variables:
+        batch['obs'][x] = batch['obs'][x][:, :n_obs_step].to(device)
+
+    if 'action' in batch:
+        batch['action'] = batch['action'].to(device)
+
+    # add 'action_is_pad' (B, horizon)
+    b, h, _ = batch['action'].shape
+    batch['action_is_pad'] = torch.zeros(b, h, dtype=torch.bool, device=device)
+    return batch
 
 
 def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = None):
@@ -325,7 +405,7 @@ def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = No
     torch.backends.cuda.matmul.allow_tf32 = True
 
     logging.info("make_dataset")
-    spartan_to_zarr(cfg)
+    offline_dataset, normalizer = spartan_to_zarr(cfg)
 
     # offline_dataset = make_dataset(cfg)
     # if isinstance(offline_dataset, MultiLeRobotDataset):
@@ -333,7 +413,6 @@ def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = No
     #        "Multiple datasets were provided. Applied the following index mapping to the provided datasets: "
     #        f"{pformat(offline_dataset.repo_id_to_index , indent=2)}"
     #    )
-    import pdb; pdb.set_trace()
 
     # Create environment used for evaluating checkpoints during training on simulation data.
     # On real-world data, no need to create an environment as evaluations are done outside train.py,
@@ -346,7 +425,8 @@ def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = No
     logging.info("make_policy")
     policy = make_policy(
         hydra_cfg=cfg,
-        dataset_stats=offline_dataset.stats if not cfg.resume else None,
+        dataset_stats=normalizer,
+        #dataset_stats=offline_dataset.stats if not cfg.resume else None,
         pretrained_policy_name_or_path=str(logger.last_pretrained_model_dir) if cfg.resume else None,
     )
     assert isinstance(policy, nn.Module)
@@ -367,8 +447,8 @@ def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = No
     logging.info(f"{cfg.env.task=}")
     logging.info(f"{cfg.training.offline_steps=} ({format_big_number(cfg.training.offline_steps)})")
     logging.info(f"{cfg.training.online_steps=}")
-    logging.info(f"{offline_dataset.num_samples=} ({format_big_number(offline_dataset.num_samples)})")
-    logging.info(f"{offline_dataset.num_episodes=}")
+    #logging.info(f"{offline_dataset.num_samples=} ({format_big_number(offline_dataset.num_samples)})")
+    #logging.info(f"{offline_dataset.num_episodes=}")
     logging.info(f"{num_learnable_params=} ({format_big_number(num_learnable_params)})")
     logging.info(f"{num_total_params=} ({format_big_number(num_total_params)})")
 
@@ -418,6 +498,7 @@ def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = No
             drop_n_last_frames=cfg.training.drop_n_last_frames,
             shuffle=True,
         )
+        assert False
     else:
         shuffle = True
         sampler = None
@@ -432,6 +513,15 @@ def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = No
     )
     dl_iter = cycle(dataloader)
 
+
+    to_tensor = BatchToTensor()
+    this_normalizer = torchvision.transforms.Normalize(
+        mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
+    )
+    this_transform = nn.Sequential(
+        to_tensor, this_normalizer,
+    )
+
     policy.train()
     for _ in range(step, cfg.training.offline_steps):
         if step == 0:
@@ -441,8 +531,12 @@ def train(cfg: DictConfig, out_dir: str | None = None, job_name: str | None = No
         batch = next(dl_iter)
         dataloading_s = time.perf_counter() - start_time
 
-        for key in batch:
-            batch[key] = batch[key].to(device, non_blocking=True)
+        batch = process_batch(
+            batch, this_transform, cfg.policy.n_obs_steps, policy.expected_image_keys, device
+        )
+
+        #for key in batch:
+        #    batch[key] = batch[key].to(device, non_blocking=True)
 
         train_info = update_policy(
             policy,

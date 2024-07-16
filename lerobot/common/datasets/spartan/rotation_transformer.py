@@ -5,7 +5,7 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 import torch
 
-from diffusion_policy.model.common.rotation_conversions import *
+from lerobot.common.datasets.spartan.rotation_conversions import *
 
 
 def get_rotation_transformer(from_rep: str, to_rep: str):

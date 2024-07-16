@@ -2,6 +2,7 @@ defaults:
   - _self_
   - env: pusht
   - policy: diffusion
+  - task: bimanual_put_red_bell_pepper_in_bin
 
 hydra:
   run:

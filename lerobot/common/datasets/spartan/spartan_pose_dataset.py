@@ -212,6 +212,14 @@ class SpartanBaseDataset(BaseImageDataset):
     def __getitem__(self, idx: int) -> Dict[str, torch.Tensor]:
         raise NotImplementedError()
 
+    @property
+    def num_samples(self):
+        return len(self)
+
+    @property
+    def num_episodes(self):
+        return len(self.replay_buffer.episode_ends)
+
 
 class EpisodePathHelper:
     def __init__(self, episode_path: str) -> None:
