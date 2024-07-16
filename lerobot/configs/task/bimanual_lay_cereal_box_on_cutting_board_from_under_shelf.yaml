@@ -1,0 +1,279 @@
+name: bimanual_lay_cereal_box_on_cutting_board_from_under_shelf
+
+shape_meta: &shape_meta
+  # acceptable types: rgb, low_dim
+  obs:
+    # camera
+
+    "scene_right_0": &camera_meta
+      shape: [3, 256, 342]
+      type: rgb
+
+    "scene_left_0": *camera_meta
+
+    "wrist_right_minus": *camera_meta
+
+    "wrist_left_plus": *camera_meta
+
+
+    "robot__actual__poses__right::panda__xyz":
+      shape: [3]
+      type: low_dim
+    "robot__actual__poses__right::panda__rot_6d":
+      shape: [6]
+      type: low_dim
+    "robot__actual__poses__left::panda__xyz":
+      shape: [3]
+      type: low_dim
+    "robot__actual__poses__left::panda__rot_6d":
+      shape: [6]
+      type: low_dim
+    "robot__actual__grippers__right::panda_hand":
+      shape: [1]
+      type: low_dim
+    "robot__actual__grippers__left::panda_hand":
+      shape: [1]
+      type: low_dim
+
+    "robot__actual__poses__left__right::panda__xyz":
+      shape: [3]
+      type: low_dim
+    "robot__actual__poses__left__right::panda__rot_6d":
+      shape: [6]
+      type: low_dim
+    "robot__actual__poses__right__left::panda__xyz":
+      shape: [3]
+      type: low_dim
+    "robot__actual__poses__right__left::panda__rot_6d":
+      shape: [6]
+      type: low_dim
+
+  action:
+    # (3(pos) + 6(rot) + 1(gripper))*2
+    shape: [20]
+
+task_name: &task_name bimanual_lay_cereal_box_on_cutting_board_from_under_shelf
+dataset_path: &dataset_path [
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_0,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_1,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_2,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_3,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_4,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_5,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_6,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_7,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_8,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_9,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_10,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_11,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_12,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_13,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_14,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_15,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_16,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_17,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_18,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_19,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_20,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_21,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_22,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_23,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_24,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_25,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_26,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_27,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_28,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_29,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_30,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_31,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-26T18-58-33-04-00/diffusion_spartan/episode_32,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_33,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_34,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_35,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_36,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_37,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_38,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_39,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_40,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_41,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_42,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_43,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_44,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_45,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_46,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_47,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_48,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_49,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_50,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_51,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_52,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_53,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_54,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_55,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_56,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_57,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_58,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_59,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_60,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_61,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_62,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_63,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_64,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_65,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_66,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_67,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_68,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_69,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_70,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_71,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_72,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_73,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_74,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_75,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_76,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_77,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_78,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_79,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_80,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T10-47-44-04-00/diffusion_spartan/episode_81,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_82,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_83,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_84,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_85,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_86,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_87,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_88,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_89,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_90,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_91,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_92,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_93,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_94,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_95,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_96,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_97,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_98,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_99,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_100,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_101,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_102,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_103,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_104,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_105,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_106,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_107,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_108,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_109,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_110,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_111,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_112,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_113,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_114,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_115,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_116,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_117,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_118,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_119,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_120,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_121,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_122,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_123,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_124,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_125,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_126,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_127,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_128,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_129,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_130,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_131,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_132,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_133,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_134,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_135,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_136,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_137,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_138,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T15-52-00-04-00/diffusion_spartan/episode_139,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-06-27T18-47-41-04-00/diffusion_spartan/episode_140,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_141,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_142,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_143,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_144,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_145,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_146,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_147,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_148,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_149,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_150,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_151,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_152,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_153,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_154,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_155,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_156,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_157,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_158,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_159,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_160,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_161,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_162,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_163,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_164,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_165,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_166,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_167,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_168,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_169,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_170,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_171,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_172,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_173,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_174,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_175,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_176,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_177,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_178,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_179,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_180,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_181,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_182,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_183,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_184,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_185,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_186,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_187,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_188,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_189,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_190,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_191,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_192,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_193,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_194,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_195,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_196,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_197,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_198,
+  /home/ubuntu/efs/data/tasks/BimanualLayCerealBoxOnCuttingBoardFromUnderShelf/riverway/sim/bc/teleop/2024-07-01T10-49-51-04-00/diffusion_spartan/episode_199,]
+
+dataset:
+  _target_: lerobot.common.datasets.spartan.spartan_pose_dataset.SpartanImageDataset
+  episode_path_globs: *dataset_path
+  horizon: ${policy.horizon}
+  n_obs_steps: ${policy.n_obs_steps}
+  pad_before: ${eval:'${policy.n_obs_steps}-1'}
+  pad_after: ${eval:'${policy.n_action_steps}-1'}
+  shape_meta: *shape_meta
+  rotation_rep: rotation_6d
+  repeat_head: 0
+  repeat_tail: 0
+  has_gripper: false  # we use separate codepath for this
+  val_ratio: 0.05
+  # policy handles normalization
+  imagenet_normalization: False
+  mode: "zarr"
+  replay_buffer_path: ~/tmp/bimanual_lay_cereal_box_on_cutting_board_from_under_shelf
+  compressor: "blosc"
+  is_multiarm: true
+  is_relative: true
+  num_workers: 32
+  raw_rgb: True
